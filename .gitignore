@@ -1,6 +1,6 @@
 # Filenames
-.vscode/
-include/matplot/
+/.vscode/*
+/include/matplot/*
 not_repo_token.txt
 
 # Images
@@ -15,7 +15,7 @@ not_repo_token.txt
 *.dll
 
 # Compiled Static libraries
-lib/
+/lib/*
 *.a
 *.lib
 
