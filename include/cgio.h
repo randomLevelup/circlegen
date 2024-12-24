@@ -7,8 +7,13 @@
 
 #include <tuple>
 #include <vector>
+#include <random>
+
+#include <matplot/matplot.h>
 
 #pragma once
+
+typedef std::uniform_real_distribution<float> udist;
 
 typedef std::vector<std::tuple<float, float>> dpointlist;
 
@@ -35,11 +40,11 @@ pathbundle parseSVG(const char *filename);
  * @param res sampling resolution (relative to overall xy range)
  * @return dpointlist of sampled points
  */
-dpointlist samplePaths(pathbundle &pb, int res);
+dpointlist samplePaths(pathbundle &pb, float res);
 
 /**
- * @brief render all paths to a matplot figure and save to jpg
- * @param pb pathbundle with lines/quads/cubics/arcs
- * @param filename output jpg filename
+ * @brief render all points to a matplot axis
+ * @param ax axis ptr to render to
+ * @param points list of all points to render
  */
 void renderPoints(matplot::axes_handle &ax, dpointlist &points);
