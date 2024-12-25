@@ -28,51 +28,61 @@ struct CircleOptimization {
 
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const {
         double loss = 0.0;
-        grad.setZero();
+        grad.setZero(params.size());
 
+        double px, py, cx, cy, r, dist, min_dist;
         for (const auto &point : pointlist) {
-            double px = std::get<0>(point);
-            double py = std::get<1>(point);
+            px = std::get<0>(point);
+            py = std::get<1>(point);
 
-            double min_dist = std::numeric_limits<double>::max();
+            min_dist = std::numeric_limits<double>::max();
             int closest_circle = -1;
 
-            for (int i = 0; i < params.size() / 3; ++i) {
-                double cx = params(3 * i);
-                double cy = params(3 * i + 1);
-                double r = params(3 * i + 2);
+            for (int j = 0; j < params.size() / 3; ++j) {
+                cx = params(3 * j);
+                cy = params(3 * j + 1);
+                r = params(3 * j + 2);
 
-                double dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r;
+                dist = std::abs(std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r);
                 if (dist < min_dist) {
                     min_dist = dist;
-                    closest_circle = i;
+                    closest_circle = j;
+                }
+                cx = params(3 * j);
+                cy = params(3 * j + 1);
+                r = params(3 * j + 2);
+
+                dist = std::abs(std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    closest_circle = j;
                 }
             }
 
-            loss += min_dist * min_dist;
+            loss += min_dist;
 
             if (closest_circle != -1) {
-                double cx = params(3 * closest_circle);
-                double cy = params(3 * closest_circle + 1);
-                double r = params(3 * closest_circle + 2);
+                cx = params(3 * closest_circle);
+                cy = params(3 * closest_circle + 1);
 
-                double dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
-                double dL_ddist = 2 * min_dist;
-                double ddist_dcx = (cx - px) / dist;
-                double ddist_dcy = (cy - py) / dist;
-                double ddist_dr = -1.0;
+                dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+                if (dist != 0) {
+                    double dL_ddist = 2 * min_dist;
+                    double ddist_dcx = (cx - px) / dist;
+                    double ddist_dcy = (cy - py) / dist;
 
-                grad(3 * closest_circle) += dL_ddist * ddist_dcx;
-                grad(3 * closest_circle + 1) += dL_ddist * ddist_dcy;
-                grad(3 * closest_circle + 2) += dL_ddist * ddist_dr;
+                    grad(3 * closest_circle) += dL_ddist * ddist_dcx;
+                    grad(3 * closest_circle + 1) += dL_ddist * ddist_dcy;
+                    grad(3 * closest_circle + 2) += dL_ddist * -1.0;
+                }
             }
         }
-
         return loss;
     }
 };
 
 std::vector<dcircle> generateCircles(dpointlist &points, int num) {
+    std::cout << "making initial guess\n";
     Eigen::VectorXd initialGuess(3 * num);
     std::vector<dcircle> circles = makeInitialGuess(points, num);
     for (int i = 0; i < num; ++i) {
@@ -81,15 +91,20 @@ std::vector<dcircle> generateCircles(dpointlist &points, int num) {
         initialGuess(3 * i + 2) = std::get<2>(circles[i]);
     }
 
+    std::cout << "creating optimizer object\n";
     CircleOptimization optimization(points);
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(optimization);
-    optimizer.setMaxIterations(1000);
+
+    std::cout << "setting optimizer parameters\n";
+    optimizer.setMaxIterations(100);
     optimizer.setMinGradientLength(1e-6);
     optimizer.setMinStepLength(1e-6);
     optimizer.setMomentum(0.4);
     optimizer.setVerbosity(4);
+    std::cout << "optimizer ready\n";
 
+    std::cout << "optimizing (minimizing total circle distances)\n";
     auto result = optimizer.minimize(initialGuess);
 
     std::cout << "optimization completed!\n";
