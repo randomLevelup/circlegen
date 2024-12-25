@@ -151,34 +151,43 @@ static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen) {
     float cos_phi = std::cos(phi);
     float sin_phi = std::sin(phi);
 
-    float xc = ((p[0] + p[5]) / 2) - (p[2] / p[1]) * ((p[6] - p[1]) / 2) * sin_phi;
-    float yc = ((p[1] + p[6]) / 2) + (p[2] / p[1]) * ((p[5] - p[0]) / 2) * cos_phi;
+    // Correct calculation for the arc's center
+    float dx2 = (p[0] - p[5]) / 2.0;
+    float dy2 = (p[1] - p[6]) / 2.0;
+    float x1 = cos_phi * dx2 + sin_phi * dy2;
+    float y1 = -sin_phi * dx2 + cos_phi * dy2;
 
-    float t1 = std::atan2((p[1] - yc) * cos_phi - (p[0] - xc) * sin_phi,
-                          ((p[0] - xc) / p[2]) * cos_phi + ((p[1] - yc) / p[3]) * sin_phi);
-    float t2 = std::atan2((p[6] - yc) * cos_phi - (p[5] - xc) * sin_phi,
-                          ((p[5] - xc) / p[2]) * cos_phi + ((p[6] - yc) / p[3]) * sin_phi);
-    
-    if (isLarge && std::abs(t2 - t1) <= P_PI) {
-        t2 += 2 * P_PI;
-    }
-    else if (!isLarge && std::abs(t2 - t1) > P_PI) {
-        t2 -= 2 * P_PI;
+    float rx_sq = p[2] * p[2];
+    float ry_sq = p[3] * p[3];
+    float x1_sq = x1 * x1;
+    float y1_sq = y1 * y1;
+
+    float radicant = (rx_sq * ry_sq - rx_sq * y1_sq - ry_sq * x1_sq) / (rx_sq * y1_sq + ry_sq * x1_sq);
+    radicant = (radicant < 0) ? 0 : radicant;
+    float coef = (isLarge != isCCW ? 1 : -1) * std::sqrt(radicant);
+    float cx1 = coef * ((p[2] * y1) / p[3]);
+    float cy1 = coef * -((p[3] * x1) / p[2]);
+
+    float cx = cos_phi * cx1 - sin_phi * cy1 + (p[0] + p[5]) / 2.0;
+    float cy = sin_phi * cx1 + cos_phi * cy1 + (p[1] + p[6]) / 2.0;
+
+    float start_angle = std::atan2((y1 - cy1) / p[3], (x1 - cx1) / p[2]);
+    float end_angle = std::atan2((-y1 - cy1) / p[3], (-x1 - cx1) / p[2]);
+
+    if (!isCCW && end_angle > start_angle) {
+        end_angle -= 2 * P_PI;
+    } else if (isCCW && end_angle < start_angle) {
+        end_angle += 2 * P_PI;
     }
 
-    if (isCCW) {
-        float temp = t1;
-        t1 = t2; t2 = temp;
-    }
-
-    float length = std::sqrt(std::pow(p[2], 2) + std::pow(p[3], 2));
+    float length = std::abs(end_angle - start_angle) * std::sqrt(rx_sq + ry_sq) / 2.0;
     int num_samples = (int)(length * res);
 
     dpointlist points;
     for (int i = 0; i < num_samples; ++i) {
-        float t = udist(t1, t2)(gen);
-        float x = xc + p[2] * std::cos(t) * cos_phi - p[3] * std::sin(t) * sin_phi;
-        float y = yc + p[2] * std::cos(t) * sin_phi + p[3] * std::sin(t) * cos_phi;
+        float t = udist(start_angle, end_angle)(gen);
+        float x = cx + p[2] * std::cos(t) * cos_phi - p[3] * std::sin(t) * sin_phi;
+        float y = cy + p[2] * std::cos(t) * sin_phi + p[3] * std::sin(t) * cos_phi;
         points.push_back(std::make_tuple(x, y));
     }
     return points;
@@ -351,9 +360,9 @@ static void parsePath(const char *d, pathbundle &bundle) {
                 }
                 else if (command == 'a') {
                     std::get<3>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0] + params[0], pen[1] + params[1],
+                                                                  params[0], params[1],
                                                                   params[2], params[3], params[4],
-                                                                  params[5], params[6]));
+                                                                  pen[0] + params[5], pen[1] + params[6]));
                     pen[0] += params[5];
                     pen[1] += params[6];
                 }
