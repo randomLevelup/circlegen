@@ -7,12 +7,22 @@
 
 int main(int argc, char const *argv[])
 {
-    assert(argc == 2);
+    assert(argc == 2 || argc == 4);
     const char *filename = argv[1];
 
     pathbundle pb = parseSVG(filename);
 
-    dpointlist points = samplePaths(pb, 10);
+    float res = 3.0;
+    if (argc == 4) {
+        if (std::string(argv[2]) == "--res") {
+            res = std::stof(argv[3]) / 10;
+        }
+    }
+    else {
+        std::cout << "using default res (30)\n";
+    }
+
+    dpointlist points = samplePaths(pb, res);
 
     // do processing lol
 

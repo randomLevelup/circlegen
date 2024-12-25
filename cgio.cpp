@@ -49,6 +49,12 @@ void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
     // plotCubics(ax, std::get<2>(pb));
     // plotArcs(ax, std::get<3>(pb));
 
+    std::vector<double> x(points.size()), y(points.size());
+    std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
+    std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
+
+    ax->scatter(x, y);
+
     ax->x_axis().visible(false);
     ax->y_axis().visible(false);
     ax->box(false);
@@ -96,6 +102,7 @@ static dpointlist sample_line(dline &line, float res, std::mt19937 gen) {
         float y = (1 - t) * p[1] + t * p[3];
         points.push_back(std::make_tuple(x, y));
     }
+    return points;
 }
 
 static dpointlist sample_quad(dquad &quad, float res, std::mt19937 gen) {
@@ -112,16 +119,69 @@ static dpointlist sample_quad(dquad &quad, float res, std::mt19937 gen) {
         float y = std::pow(1 - t, 2) * p[1] + 2 * (1 - t) * t * p[3] + std::pow(t, 2) * p[5];
         points.push_back(std::make_tuple(x, y));
     }
+    return points;
 }
 
 static dpointlist sample_cubic(dcubic &cubic, float res, std::mt19937 gen) {
-    dpointlist points;
+    float p[] = {std::get<0>(cubic), std::get<1>(cubic), std::get<2>(cubic), std::get<3>(cubic),
+                 std::get<4>(cubic), std::get<5>(cubic), std::get<6>(cubic), std::get<7>(cubic)};
 
+    float length = std::sqrt(std::pow(p[6] - p[0], 2) + std::pow(p[7] - p[1], 2));
+    int num_samples = (int)(length * res);
+
+    dpointlist points;
+    for (int i = 0; i < num_samples; ++i) {
+        float t = udist(0.0, 1.0)(gen);
+        float x = std::pow(1 - t, 3) * p[0] + 3 * std::pow(1 - t, 2) * t * p[2] + 
+                  3 * (1 - t) * std::pow(t, 2) * p[4] + std::pow(t, 3) * p[6];
+        float y = std::pow(1 - t, 3) * p[1] + 3 * std::pow(1 - t, 2) * t * p[3] +
+                  3 * (1 - t) * std::pow(t, 2) * p[5] + std::pow(t, 3) * p[7];
+        points.push_back(std::make_tuple(x, y));
+    }
+    return points;
 }
 
 static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen) {
-    dpointlist points;
+    float p[] = {std::get<0>(arc), std::get<1>(arc), std::get<2>(arc), std::get<3>(arc),
+                 std::get<4>(arc), std::get<7>(arc), std::get<8>(arc)};
+    bool isLarge = std::get<5>(arc);
+    bool isCCW = std::get<6>(arc);
 
+    float phi = p[4] * P_PI / 180.0;
+    float cos_phi = std::cos(phi);
+    float sin_phi = std::sin(phi);
+
+    float xc = ((p[0] + p[5]) / 2) - (p[2] / p[1]) * ((p[6] - p[1]) / 2) * sin_phi;
+    float yc = ((p[1] + p[6]) / 2) + (p[2] / p[1]) * ((p[5] - p[0]) / 2) * cos_phi;
+
+    float t1 = std::atan2((p[1] - yc) * cos_phi - (p[0] - xc) * sin_phi,
+                          ((p[0] - xc) / p[2]) * cos_phi + ((p[1] - yc) / p[3]) * sin_phi);
+    float t2 = std::atan2((p[6] - yc) * cos_phi - (p[5] - xc) * sin_phi,
+                          ((p[5] - xc) / p[2]) * cos_phi + ((p[6] - yc) / p[3]) * sin_phi);
+    
+    if (isLarge && std::abs(t2 - t1) <= P_PI) {
+        t2 += 2 * P_PI;
+    }
+    else if (!isLarge && std::abs(t2 - t1) > P_PI) {
+        t2 -= 2 * P_PI;
+    }
+
+    if (isCCW) {
+        float temp = t1;
+        t1 = t2; t2 = temp;
+    }
+
+    float length = std::sqrt(std::pow(p[2], 2) + std::pow(p[3], 2));
+    int num_samples = (int)(length * res);
+
+    dpointlist points;
+    for (int i = 0; i < num_samples; ++i) {
+        float t = udist(t1, t2)(gen);
+        float x = xc + p[2] * std::cos(t) * cos_phi - p[3] * std::sin(t) * sin_phi;
+        float y = yc + p[2] * std::cos(t) * sin_phi + p[3] * std::sin(t) * cos_phi;
+        points.push_back(std::make_tuple(x, y));
+    }
+    return points;
 }
 
 /* plotLines / plotQuads / plotCubics / plotArcs are not needed
