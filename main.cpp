@@ -26,13 +26,15 @@ int main(int argc, char const *argv[])
 
     // do processing lol
 
-    //
+    int numCircles = 5;
+    std::vector<dcircle> circles = initialGuess(points, numCircles);
 
     // render
     auto fig = matplot::figure(true);
     auto ax = fig->current_axes();
     ax->y_axis().reverse(true);
     renderPoints(ax, points);
+    renderCircles(ax, circles);
 
     fig->save("output.jpg");
 

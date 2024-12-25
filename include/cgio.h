@@ -27,6 +27,8 @@ typedef std::tuple<std::vector<dline>,
                    std::vector<dcubic>,
                    std::vector<darc>> pathbundle;
 
+typedef std::tuple<float, float, float> dcircle;
+
 /**
  * @brief 
  * @param filename 
@@ -48,3 +50,5 @@ dpointlist samplePaths(pathbundle &pb, float res);
  * @param points list of all points to render
  */
 void renderPoints(matplot::axes_handle &ax, dpointlist &points);
+
+void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);

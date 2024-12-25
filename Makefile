@@ -14,10 +14,10 @@ $(EXEC): $(OBJS)
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
-run: $(EXEC)
-	./$(EXEC) arg1 arg2 arg3
+test: $(EXEC)
+	./$(EXEC) cartman.svg
 
 clean:
 	rm -f $(OBJS) $(EXEC) output.jpg
 
-.PHONY: all clean run
+.PHONY: all clean test

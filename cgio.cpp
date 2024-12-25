@@ -26,6 +26,8 @@ using namespace tinyxml2;
 #define P_PI 3.14159265358979323846
 
 void renderPoints(matplot::axes_handle &ax, dpointlist &points);
+void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);
+static dpointlist sample_circle(dcircle &circle, int num_samples);
 
 // static void plotLines(matplot::axes_handle ax, const std::vector<dline> &lines);
 // static void plotQuads(matplot::axes_handle ax, const std::vector<dquad> &quads);
@@ -37,17 +39,13 @@ static dpointlist sample_line(dline &line, float res, std::mt19937 gen);
 static dpointlist sample_quad(dquad &quad, float res, std::mt19937 gen);
 static dpointlist sample_cubic(dcubic &cubic, float res, std::mt19937 gen);
 static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen);
+static dpointlist sample_circle(dcircle &circle, int num_samples);
 
 pathbundle parseSVG(const char *filename);
 static void parsePath(const char *d, pathbundle &bundle);
 
 void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
     ax->hold(true);
-
-    // plotLines(ax, std::get<0>(pb));
-    // plotQuads(ax, std::get<1>(pb));
-    // plotCubics(ax, std::get<2>(pb));
-    // plotArcs(ax, std::get<3>(pb));
 
     std::vector<double> x(points.size()), y(points.size());
     std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
@@ -58,6 +56,34 @@ void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
     ax->x_axis().visible(false);
     ax->y_axis().visible(false);
     ax->box(false);
+}
+
+void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles) {
+    ax->hold(true);
+
+    for (dcircle &circle : circles) {
+        auto points = sample_circle(circle, 100);
+        std::vector<double> x(points.size()), y(points.size());
+        std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
+        std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
+
+        ax->plot(x, y, "k");
+    }
+}
+
+static dpointlist sample_circle(dcircle &circle, int num_samples) {
+    float x = std::get<0>(circle);
+    float y = std::get<1>(circle);
+    float r = std::get<2>(circle);
+
+    dpointlist points;
+    for (int i = 0; i < num_samples; ++i) {
+        float theta = 2 * P_PI * i / num_samples;
+        float px = x + r * std::cos(theta);
+        float py = y + r * std::sin(theta);
+        points.push_back(std::make_tuple(px, py));
+    }
+    return points;
 }
 
 dpointlist samplePaths(pathbundle &pb, float res) {
@@ -192,55 +218,6 @@ static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen) {
     }
     return points;
 }
-
-/* plotLines / plotQuads / plotCubics / plotArcs are not needed
-static void plotLines(matplot::axes_handle ax, const std::vector<dline> &lines) {
-    for (const auto& line : lines) {
-        float x1 = std::get<0>(line);
-        float y1 = std::get<1>(line);
-        float x2 = std::get<2>(line);
-        float y2 = std::get<3>(line);
-
-        std::vector<float> x = {x1, x2};
-        std::vector<float> y = {y1, y2};
-
-        ax->plot(x, y, "k");
-    }
-}
-
-static void plotQuads(matplot::axes_handle ax, const std::vector<dquad> &quads) {
-    for (dquad quad : quads) {
-        auto bezier_points = sample_quad(quad, BEZ_RES);
-        std::vector<float> x(bezier_points.size()), y(bezier_points.size());
-        std::transform(bezier_points.begin(), bezier_points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
-        std::transform(bezier_points.begin(), bezier_points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
-
-        ax->plot(x, y, "k");
-    }
-}
-
-static void plotCubics(matplot::axes_handle ax, const std::vector<dcubic>& cubics) {
-    for (dcubic cubic : cubics) {
-        auto bezier_points = sample_cubic(cubic, BEZ_RES);
-        std::vector<float> x(bezier_points.size()), y(bezier_points.size());
-        std::transform(bezier_points.begin(), bezier_points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
-        std::transform(bezier_points.begin(), bezier_points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
-
-        ax->plot(x, y, "k");
-    }
-}
-
-static void plotArcs(matplot::axes_handle ax, const std::vector<darc>& arcs) {
-    for (darc arc : arcs) {
-        auto arc_points = sample_arc(arc, BEZ_RES);
-        std::vector<float> x(arc_points.size()), y(arc_points.size());
-        std::transform(arc_points.begin(), arc_points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
-        std::transform(arc_points.begin(), arc_points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
-        
-        ax->plot(x, y, "k");
-    }
-}
-*/
 
 pathbundle parseSVG(const char *filename) {
     tinyxml2::XMLDocument doc;
