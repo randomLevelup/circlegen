@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <random>
 #include <tuple>
+#include <limits>
 
 #include <Eigen/Core>
 #include "gdcpp.h"
@@ -21,17 +22,53 @@ std::vector<dcircle> generateCircles(dpointlist &points, int num);
 std::vector<dcircle> makeInitialGuess(dpointlist &points, int num);
 
 struct CircleOptimization {
+    dpointlist pointlist;
+    CircleOptimization() = default;
+    CircleOptimization(const dpointlist &points) : pointlist(points) {}
+
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const {
+        double loss = 0.0;
+        grad.setZero();
 
-        // calculate loss
+        for (const auto &point : pointlist) {
+            double px = std::get<0>(point);
+            double py = std::get<1>(point);
 
-        //
+            double min_dist = std::numeric_limits<double>::max();
+            int closest_circle = -1;
 
-        // calculate gradient
+            for (int i = 0; i < params.size() / 3; ++i) {
+                double cx = params(3 * i);
+                double cy = params(3 * i + 1);
+                double r = params(3 * i + 2);
 
-        //
+                double dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r;
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    closest_circle = i;
+                }
+            }
 
-        return 0.0;
+            loss += min_dist * min_dist;
+
+            if (closest_circle != -1) {
+                double cx = params(3 * closest_circle);
+                double cy = params(3 * closest_circle + 1);
+                double r = params(3 * closest_circle + 2);
+
+                double dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+                double dL_ddist = 2 * min_dist;
+                double ddist_dcx = (cx - px) / dist;
+                double ddist_dcy = (cy - py) / dist;
+                double ddist_dr = -1.0;
+
+                grad(3 * closest_circle) += dL_ddist * ddist_dcx;
+                grad(3 * closest_circle + 1) += dL_ddist * ddist_dcy;
+                grad(3 * closest_circle + 2) += dL_ddist * ddist_dr;
+            }
+        }
+
+        return loss;
     }
 };
 
@@ -44,7 +81,9 @@ std::vector<dcircle> generateCircles(dpointlist &points, int num) {
         initialGuess(3 * i + 2) = std::get<2>(circles[i]);
     }
 
+    CircleOptimization optimization(points);
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
+    optimizer.setObjective(optimization);
     optimizer.setMaxIterations(1000);
     optimizer.setMinGradientLength(1e-6);
     optimizer.setMinStepLength(1e-6);
