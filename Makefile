@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -Wall -Wextra -Wpedantic -I./include -I/usr/local/include/
-LDFLAGS = -L./lib -L/usr/lib -L/usr/local/lib/Matplot++ -ltinyxml2 -lmatplot -lnodesoup
+CFLAGS = -Wall -Wextra -Wpedantic -I./include -I/usr/local/include/ -I/usr/include/eigen3 -fopenmp
+LDFLAGS = -L./lib -L/usr/lib -L/usr/local/lib/Matplot++ -ltinyxml2 -lmatplot -lnodesoup -fopenmp
 
 SRCS = cgio.cpp cgproc.cpp main.cpp
 OBJS = $(SRCS:.cpp=.o)

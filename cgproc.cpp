@@ -5,17 +5,69 @@
  * @brief circlegen processing implementations
  */
 
+#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <random>
 #include <tuple>
 
+#include <Eigen/Core>
+#include "gdcpp.h"
+
 #include "cgproc.h"
 #include "cgio.h"
 
-std::vector<dcircle> initialGuess(dpointlist &points, int num);
+std::vector<dcircle> generateCircles(dpointlist &points, int num);
+std::vector<dcircle> makeInitialGuess(dpointlist &points, int num);
 
-std::vector<dcircle> initialGuess(dpointlist &points, int num) {
+struct CircleOptimization {
+    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const {
+
+        // calculate loss
+
+        //
+
+        // calculate gradient
+
+        //
+
+        return 0.0;
+    }
+};
+
+std::vector<dcircle> generateCircles(dpointlist &points, int num) {
+    Eigen::VectorXd initialGuess(3 * num);
+    std::vector<dcircle> circles = makeInitialGuess(points, num);
+    for (int i = 0; i < num; ++i) {
+        initialGuess(3 * i) = std::get<0>(circles[i]);
+        initialGuess(3 * i + 1) = std::get<1>(circles[i]);
+        initialGuess(3 * i + 2) = std::get<2>(circles[i]);
+    }
+
+    gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
+    optimizer.setMaxIterations(1000);
+    optimizer.setMinGradientLength(1e-6);
+    optimizer.setMinStepLength(1e-6);
+    optimizer.setMomentum(0.4);
+    optimizer.setVerbosity(4);
+
+    auto result = optimizer.minimize(initialGuess);
+
+    std::cout << "optimization completed!\n";
+    std::cout << "Converged: " << (result.converged ? "true" : "false") << std::endl;
+    std::cout << "Iterations: " << result.iterations << std::endl;
+    std::cout << "Final loss value: " << result.fval << std::endl;
+    std::cout << "Final parameters: " << result.xval.transpose() << std::endl;
+
+    std::vector<dcircle> optimizedCircles;
+    for (int i = 0; i < num; ++i) {
+        optimizedCircles.emplace_back(result.xval(3 * i), result.xval(3 * i + 1), result.xval(3 * i + 2));
+    }
+
+    return optimizedCircles;
+}
+
+std::vector<dcircle> makeInitialGuess(dpointlist &points, int num) {
     // Determine the x and y bounds of all the points
     auto [min_x, max_x] = std::minmax_element(points.begin(), points.end(), 
         [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });

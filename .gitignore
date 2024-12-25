@@ -1,8 +1,9 @@
 # Filenames
-.vscode
+.vscode/
 /include/matplot/
 /include/eigen3/
 not_repo_token.txt
+circlegen
 
 # Images
 *.svg

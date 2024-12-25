@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <matplot/matplot.h>
+#include "gdcpp.h"
 
 #include "cgio.h"
 #include "cgproc.h"
@@ -26,8 +27,8 @@ int main(int argc, char const *argv[])
 
     // do processing lol
 
-    int numCircles = 5;
-    std::vector<dcircle> circles = initialGuess(points, numCircles);
+    int numcircles = 5;
+    std::vector<dcircle> circles = generateCircles(points, numcircles);
 
     // render
     auto fig = matplot::figure(true);
