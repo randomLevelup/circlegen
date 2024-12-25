@@ -53,7 +53,7 @@ void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
     std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
     std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
 
-    ax->scatter(x, y);
+    ax->scatter(x, y)->marker_face_color("k").marker_size(2);
 
     ax->x_axis().visible(false);
     ax->y_axis().visible(false);
