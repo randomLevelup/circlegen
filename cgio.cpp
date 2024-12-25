@@ -177,7 +177,6 @@ static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen) {
     float cos_phi = std::cos(phi);
     float sin_phi = std::sin(phi);
 
-    // Correct calculation for the arc's center
     float dx2 = (p[0] - p[5]) / 2.0;
     float dy2 = (p[1] - p[6]) / 2.0;
     float x1 = cos_phi * dx2 + sin_phi * dy2;
