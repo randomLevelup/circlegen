@@ -27,8 +27,10 @@ int main(int argc, char const *argv[])
 
     // do processing lol
 
-    int numcircles = 5;
+    int numcircles = 11;
     std::vector<dcircle> circles = generateCircles(points, numcircles);
+    // cleanCircles(points, circles);
+    // std::cout << "removed " << numcircles - circles.size() << " circles\n";
 
     // render
     auto fig = matplot::figure(true);

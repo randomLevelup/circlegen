@@ -21,9 +21,7 @@ typedef std::tuple<float, float, float> dcircle;
 std::vector<dcircle> generateCircles(dpointlist &points, int num);
 
 /**
- * @brief spawns n circles with random dimensions
- * @param points points to determine bounds
- * @param num number of circles
- * @return vector of n circles
+ * @brief clean up extraneous circles
+ * @param circles list of generated circles
  */
-std::vector<dcircle> makeInitialGuess(dpointlist &points, int num);
+void cleanCircles(dpointlist &points, std::vector<dcircle> &circles);

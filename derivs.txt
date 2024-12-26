@@ -1,0 +1,5 @@
+dcx = ((px - cx) * (dist - r)) / dist * abs(dist - r)
+
+dcy = ((py - cy) * (dist - r)) / dist * abs(dist - r)
+
+ddr = (r - dist) / abs(dist - r)

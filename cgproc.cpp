@@ -19,7 +19,9 @@
 #include "cgio.h"
 
 std::vector<dcircle> generateCircles(dpointlist &points, int num);
-std::vector<dcircle> makeInitialGuess(dpointlist &points, int num);
+void cleanCircles(dpointlist &points, std::vector<dcircle> &circles);
+std::vector<dcircle> makeInitialGuessRandom(dpointlist &points, int num);
+std::vector<dcircle> makeInitialGuessNormal(dpointlist &points, int num);
 
 struct CircleOptimization {
     dpointlist pointlist;
@@ -30,29 +32,20 @@ struct CircleOptimization {
         double loss = 0.0;
         grad.setZero(params.size());
 
-        double px, py, cx, cy, r, dist, min_dist;
+        double px, py, cx, cy, r, dist, min_dist, dcx, dcy, dr;
         for (const auto &point : pointlist) {
             px = std::get<0>(point);
             py = std::get<1>(point);
 
             min_dist = std::numeric_limits<double>::max();
-            int closest_circle = -1;
+            int closest_circle = 0;
 
             for (int j = 0; j < params.size() / 3; ++j) {
                 cx = params(3 * j);
                 cy = params(3 * j + 1);
                 r = params(3 * j + 2);
 
-                dist = std::abs(std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    closest_circle = j;
-                }
-                cx = params(3 * j);
-                cy = params(3 * j + 1);
-                r = params(3 * j + 2);
-
-                dist = std::abs(std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r);
+                dist = std::abs(std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) - r) * 4;
                 if (dist < min_dist) {
                     min_dist = dist;
                     closest_circle = j;
@@ -61,21 +54,18 @@ struct CircleOptimization {
 
             loss += min_dist;
 
-            if (closest_circle != -1) {
-                cx = params(3 * closest_circle);
-                cy = params(3 * closest_circle + 1);
+            cx = params(3 * closest_circle);
+            cy = params(3 * closest_circle + 1);
+            r = params(3 * closest_circle + 2);
 
-                dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
-                if (dist != 0) {
-                    double dL_ddist = 2 * min_dist;
-                    double ddist_dcx = (cx - px) / dist;
-                    double ddist_dcy = (cy - py) / dist;
+            dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+            dcx = ((px - cx) * (dist - r)) / (dist * std::abs(dist - r));
+            dcy = ((py - cy) * (dist - r)) / (dist * std::abs(dist - r));
+            dr = (r - dist) / std::abs(dist - r);
 
-                    grad(3 * closest_circle) += dL_ddist * ddist_dcx;
-                    grad(3 * closest_circle + 1) += dL_ddist * ddist_dcy;
-                    grad(3 * closest_circle + 2) += dL_ddist * -1.0;
-                }
-            }
+            grad(3 * closest_circle) += dcx * 4;
+            grad(3 * closest_circle + 1) += dcy * 4;
+            grad(3 * closest_circle + 2) += dr * 4;
         }
         return loss;
     }
@@ -84,7 +74,7 @@ struct CircleOptimization {
 std::vector<dcircle> generateCircles(dpointlist &points, int num) {
     std::cout << "making initial guess\n";
     Eigen::VectorXd initialGuess(3 * num);
-    std::vector<dcircle> circles = makeInitialGuess(points, num);
+    std::vector<dcircle> circles = makeInitialGuessRandom(points, num);
     for (int i = 0; i < num; ++i) {
         initialGuess(3 * i) = std::get<0>(circles[i]);
         initialGuess(3 * i + 1) = std::get<1>(circles[i]);
@@ -97,11 +87,11 @@ std::vector<dcircle> generateCircles(dpointlist &points, int num) {
     optimizer.setObjective(optimization);
 
     std::cout << "setting optimizer parameters\n";
-    optimizer.setMaxIterations(100);
+    optimizer.setMaxIterations(150);
     optimizer.setMinGradientLength(1e-6);
     optimizer.setMinStepLength(1e-6);
-    optimizer.setMomentum(0.4);
-    optimizer.setVerbosity(4);
+    optimizer.setMomentum(0.2);
+    optimizer.setVerbosity(1);
     std::cout << "optimizer ready\n";
 
     std::cout << "optimizing (minimizing total circle distances)\n";
@@ -121,7 +111,31 @@ std::vector<dcircle> generateCircles(dpointlist &points, int num) {
     return optimizedCircles;
 }
 
-std::vector<dcircle> makeInitialGuess(dpointlist &points, int num) {
+void cleanCircles(dpointlist &points, std::vector<dcircle> &circles) {
+    const double max_radius = 100.0; // Define a maximum acceptable radius
+    const double max_distance = 200.0; // Define a maximum acceptable distance from the point cloud
+
+    auto is_circle_valid = [&](const dcircle &circle) {
+        double cx = std::get<0>(circle);
+        double cy = std::get<1>(circle);
+        double r = std::get<2>(circle);
+
+        if (r > max_radius) return false;
+
+        for (const auto &point : points) {
+            double px = std::get<0>(point);
+            double py = std::get<1>(point);
+            double dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+            if (dist <= max_distance) return true;
+        }
+        return false;
+    };
+
+    circles.erase(std::remove_if(circles.begin(), circles.end(), 
+        [&](const dcircle &circle) { return !is_circle_valid(circle); }), circles.end());
+}
+
+std::vector<dcircle> makeInitialGuessRandom(dpointlist &points, int num) {
     // Determine the x and y bounds of all the points
     auto [min_x, max_x] = std::minmax_element(points.begin(), points.end(), 
         [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
@@ -146,6 +160,36 @@ std::vector<dcircle> makeInitialGuess(dpointlist &points, int num) {
         float y = dis_y(gen);
         float r = dis_r(gen);
         circles.push_back(std::make_tuple(x, y, r));
+    }
+
+    return circles;
+}
+
+std::vector<dcircle> makeInitialGuessNormal(dpointlist &points, int num) {
+    // Determine the x and y bounds of all the points
+    auto [min_x, max_x] = std::minmax_element(points.begin(), points.end(), 
+        [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
+    auto [min_y, max_y] = std::minmax_element(points.begin(), points.end(), 
+        [](const auto& a, const auto& b) { return std::get<1>(a) < std::get<1>(b); });
+
+    float x_min = std::get<0>(*min_x);
+    float x_max = std::get<0>(*max_x);
+    float y_min = std::get<1>(*min_y);
+    float y_max = std::get<1>(*max_y);
+
+    std::vector<dcircle> circles;
+    float radius = std::min(x_max - x_min, y_max - y_min) / (4 * std::sqrt(num));
+    int grid_size = static_cast<int>(std::sqrt(num));
+    float x_step = (x_max - x_min) / grid_size;
+    float y_step = (y_max - y_min) / grid_size;
+
+    for (int i = 0; i < grid_size; ++i) {
+        for (int j = 0; j < grid_size; ++j) {
+            if (circles.size() >= (unsigned)num) break;
+            float x = x_min + i * x_step + x_step / 2;
+            float y = y_min + j * y_step + y_step / 2;
+            circles.push_back(std::make_tuple(x, y, radius));
+        }
     }
 
     return circles;
