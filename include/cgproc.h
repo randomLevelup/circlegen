@@ -13,12 +13,29 @@ typedef std::vector<std::tuple<float, float>> dpointlist;
 typedef std::tuple<float, float, float> dcircle;
 
 /**
+ * @brief point object for cacheability
+ */
+struct dpoint {
+    double x;
+    double y;
+    int closest_circle;
+}; typedef struct dpoint dpoint;
+
+struct dbounds {
+    float x_min;
+    float x_max;
+    float y_min;
+    float y_max;
+}; typedef struct dbounds dbounds;
+
+/**
  * @brief optimization object for circle fitting
  */
 struct CircleOptimization {
-    dpointlist pointlist;
+    const dpoint *pointArray;
+    unsigned numPoints;
     CircleOptimization() = default;
-    CircleOptimization(const dpointlist &points) : pointlist(points) {}
+    CircleOptimization(const dpoint *points, unsigned numPoints) : pointArray(points), numPoints(numPoints) {}
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const;
 };
 

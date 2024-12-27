@@ -15,7 +15,10 @@ $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 test: $(EXEC)
-	./$(EXEC) cartman.svg
+	./$(EXEC) cartman.svg --res 6
+
+leakcheck: $(EXEC)
+	valgrind --leak-check=full --track-origins=yes ./$(EXEC) cartman.svg
 
 clean:
 	rm -f $(OBJS) $(EXEC) output.jpg
