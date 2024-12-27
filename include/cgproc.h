@@ -13,6 +13,16 @@ typedef std::vector<std::tuple<float, float>> dpointlist;
 typedef std::tuple<float, float, float> dcircle;
 
 /**
+ * @brief optimization object for circle fitting
+ */
+struct CircleOptimization {
+    dpointlist pointlist;
+    CircleOptimization() = default;
+    CircleOptimization(const dpointlist &points) : pointlist(points) {}
+    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const;
+};
+
+/**
  * @brief generate and optimize circles
  * @param points point list to fit circles to
  * @param num number of circles
