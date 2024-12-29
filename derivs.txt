@@ -1,5 +1,10 @@
-dcx = ((px - cx) * (dist - r)) / dist * abs(dist - r)
+s = 5
+dist_c = sqrt ( (cx - px) * (cx - px) + (cy - py) * (cy - py) )
+ensure dist_c != 0
+dist_r = abs ( dist_c - cr )
 
-dcy = ((py - cy) * (dist - r)) / dist * abs(dist - r)
+loss = exp( -(dist_r^2)/2s^2 )
 
-ddr = (r - dist) / abs(dist - r)
+dl/dcx = -( (cx - px) * dist_r * loss ) / ( s^2 * dist_c )
+dl/dcy = -( (cy - py) * dist_r * loss ) / ( s^2 * dist_c )
+dl/dcr = -( dist_r * loss ) / e^2
