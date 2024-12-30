@@ -1,10 +1,14 @@
-s = 5
-dist_c = sqrt ( (cx - px) * (cx - px) + (cy - py) * (cy - py) )
-ensure dist_c != 0
-dist_r = abs ( dist_c - cr )
+a = 1.0
+b = pow( r, (2/3) ) (r=radius)
+c = 0.27
 
-loss = exp( -(dist_r^2)/2s^2 )
+dist2 = (cx - px) * (cx - px) + (cy - py) * (cy - py)
+distc = sqrt( abs ( dist2 ) )
+distnorm = exp(c * distc + b)
 
-dl/dcx = -( (cx - px) * dist_r * loss ) / ( s^2 * dist_c )
-dl/dcy = -( (cy - py) * dist_r * loss ) / ( s^2 * dist_c )
-dl/dcr = -( dist_r * loss ) / e^2
+loss = a / ( 1 + exp( -c * abs(distc) - b ) )
+
+d/dl = ( a * c * dist2 * distnorm ) / ( pow(abs(dist2), (3/2)) * pow(1 + distnorm, 2) )
+dl/dx = (cx - px) d/dl
+dl/dy = (cy - py) d/dl
+dl/dr =  (2 * a * distnorm ) / ( 3 * cbrt(r) * pow(1 + distnorm, 2) )

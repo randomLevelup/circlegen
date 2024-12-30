@@ -18,15 +18,7 @@ typedef std::tuple<float, float, float> dcircle;
 struct dpoint {
     double x;
     double y;
-    int closest_circle;
 }; typedef struct dpoint dpoint;
-
-struct dbounds {
-    float x_min;
-    float x_max;
-    float y_min;
-    float y_max;
-}; typedef struct dbounds dbounds;
 
 /**
  * @brief optimization object for circle fitting
@@ -34,8 +26,9 @@ struct dbounds {
 struct CircleOptimization {
     const dpoint *pointArray;
     unsigned numPoints;
+    unsigned startIndex;
     CircleOptimization() = default;
-    CircleOptimization(const dpoint *points, unsigned numPoints) : pointArray(points), numPoints(numPoints) {}
+    CircleOptimization(const dpoint *points, unsigned numPoints) : pointArray(points), numPoints(numPoints), startIndex(0) {}
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const;
 };
 
@@ -46,9 +39,3 @@ struct CircleOptimization {
  * @return vector of n circles
  */
 std::vector<dcircle> generateCircles(dpointlist &points, int num);
-
-/**
- * @brief clean up extraneous circles
- * @param circles list of generated circles
- */
-void cleanCircles(dpointlist &points, std::vector<dcircle> &circles);
