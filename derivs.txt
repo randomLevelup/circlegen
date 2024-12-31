@@ -4,11 +4,14 @@ c = 0.27
 
 dist2 = (cx - px) * (cx - px) + (cy - py) * (cy - py)
 distc = sqrt( abs ( dist2 ) )
-distnorm = exp(c * distc + b)
+distp = r - distc
+distp += (distp == 0) ? 1e-6 : 0.0
+distn = c * (b - abs(distp))
+distn2 = c * (abs(distp) - b)
 
-loss = a / ( 1 + exp( -c * abs(distc) - b ) )
+loss = a / ( 1 + exp( -c * (abs(distc - r) - b) ) )
 
-d/dl = ( a * c * dist2 * distnorm ) / ( pow(abs(dist2), (3/2)) * pow(1 + distnorm, 2) )
-dl/dx = (cx - px) d/dl
-dl/dy = (cy - py) d/dl
-dl/dr =  (2 * a * distnorm ) / ( 3 * cbrt(r) * pow(1 + distnorm, 2) )
+d/dl = ( a * c * dist2 ) / ( pow(abs(dist2), 1.5) * abs(distp) * pow(exp(distn + 1), 2) )
+dl/dx = (cx - px) * (distc - b) * exp(distn) d/dl
+dl/dy = -(cy - py) * (b - distc) * exp(distn2) d/dl
+dl/dr = (a * c * ((distp / abs(distp)) - (2 / (3 * cbrt(r)))) * exp(distn)) / pow((exp(distn) + 1), 2)

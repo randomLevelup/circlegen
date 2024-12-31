@@ -8,11 +8,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
 #include <random>
 #include <tuple>
 #include <limits>
 #include <cassert>
+#include <algorithm>
 
 #include <Eigen/Core>
 #include "gdcpp.h"
@@ -58,8 +58,8 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, int num) {
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
     optimizer.setMaxIterations(200); // Increased max iterations for better convergence
-    optimizer.setMinGradientLength(1e-9); // Tighter gradient tolerance
-    optimizer.setMinStepLength(1e-11); // Tighter step length tolerance
+    optimizer.setMinGradientLength(1e-4); // Tighter gradient tolerance
+    optimizer.setMinStepLength(1e-4); // Tighter step length tolerance
     optimizer.setMomentum(0.9); // Increased momentum to help with dependencies
     optimizer.setVerbosity(1);
 
@@ -67,6 +67,7 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, int num) {
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
+        circles.push_back(std::make_tuple(params(0), params(1), params(2)));
 
         // optimize params
         auto result = optimizer.minimize(params);
@@ -89,37 +90,38 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
     double total_loss = 0.0;
     grad.setZero(params.size());
 
-    double a, b, c, r, cx, cy, px, py, dist2, distc, distnorm, loss, dl, dx, dy, dr;
-    a = 10000.0;
-    c = 0.9;
+    double a, b, c, r, cx, cy, px, py, dist2, distc, distp, distn, distn2, loss, dl, dx, dy, dr;
+    a = 1.0;
+    c = 0.18;
+    cx = params(0);
+    cy = params(1);
+    r = params(2);
+    b = std::pow(r, (2.0/3.0));
 
     for (unsigned i = startIndex; i < numPoints; ++i) {
         px = pointArray[i].x;
         py = pointArray[i].y;
-        cx = params(0);
-        cy = params(1);
-        r = params(2);
-        b = std::pow(r, (2.0/3.0));
-        // std::cout << "Point p: (" << px << ", " << py << "), Circle center c: (" << cx << ", " << cy << "), Radius r: " << r << std::endl;
 
         dist2 = (cx - px) * (cx - px) + (cy - py) * (cy - py);
         if (std::abs(dist2) < 1e-6) {dist2 += 1e-6;}
         distc = std::sqrt(std::abs(dist2));
-        distnorm = std::exp(c * distc + b);
+        distp = (r - distc == 0) ? 1e-6 : r - distc;
+        distn = c * (b - std::abs(distp));
+        distn2 = c * (abs(distp) - b);
 
-        loss = a / (1 + std::exp(-c * abs(distc) - b));
+        loss = a / ( 1 + std::exp( -c * (std::abs(distc - r) - b) ));
         total_loss += loss;
 
-        dl = (a * c * dist2 * distnorm) / (std::pow(std::abs(dist2), (3.0/2.0)) * std::pow(1 + distnorm, 2));
-        dx = (cx - px) * dl;
-        dy = (cy - py) * dl;
-        dr = (2 * a * distnorm) / (3 * std::cbrt(r) * std::pow(1 + distnorm, 2));
-        // std::cout << "dx: " << dx << ", dy: " << dy << ", dr: " << dr << std::endl;
+        dl = (a * c * dist2 ) / (std::pow(std::abs(dist2), 1.5) * std::abs(distp) * std::pow(exp(distn + 1), 2));
+        dx = (cx - px) * (distc - b) * std::exp(distn) * dl;
+        dy = (cy - py) * (b - distc) * std::exp(distn2) * dl;
+        dr = (a * c * ((distp / std::abs(distp)) - (2 / (3 * std::cbrt(r)))) * std::exp(distn) /
+             std::pow((std::exp(distn) + 1), 2));
 
         grad(0) += dx;
         grad(1) += dy;
         grad(2) += dr;
     }
-
-    return total_loss / (double)numPoints;
+    total_loss /= (double)numPoints;
+    return total_loss;
 }
