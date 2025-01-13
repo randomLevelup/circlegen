@@ -15,7 +15,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 test: $(EXEC)
-	./$(EXEC) cartman.svg --res 6
+	./$(EXEC) cartman.svg --res 10
 
 leakcheck: $(EXEC)
 	valgrind --leak-check=full --track-origins=yes ./$(EXEC) cartman.svg

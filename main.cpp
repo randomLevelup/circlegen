@@ -27,7 +27,7 @@ int main(int argc, char const *argv[])
 
     // do processing lol
 
-    int numcircles = 1;
+    int numcircles = 4;
     std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles);
 
     // render

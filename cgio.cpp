@@ -68,9 +68,9 @@ void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles) {
         std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
         std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
 
-        const char *color = first ? "r" : "k";
+        const char *color = first ? "b" : "k";
         ax->plot(x, y, color);
-        first = false;
+        // first = false;
     }
 }
 

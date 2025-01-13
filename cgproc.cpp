@@ -87,7 +87,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
-    optimizer.setMaxIterations(400); // Increased max iterations for better convergence
+    optimizer.setMaxIterations(300); // Increased max iterations for better convergence
     optimizer.setMinGradientLength(1e-11); // Tighter gradient tolerance
     optimizer.setMinStepLength(1e-12); // Tighter step length tolerance
     optimizer.setMomentum(0.1); // Increased momentum to help with dependencies
@@ -97,7 +97,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
-        circles.push_back(std::make_tuple(params(0), params(1), params(2)));
+        // circles.push_back(std::make_tuple(params(0), params(1), params(2)));
 
         // optimize params
         auto result = optimizer.minimize(params);
@@ -130,7 +130,7 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
     for (unsigned i = startIndex; i < numPoints; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        loss = std::sqrt(std::abs(dist - r));
+        loss = std::min(std::sqrt(std::abs(dist - r)), 2.0);
         total_loss += loss;
     }
     total_loss /= (double)numPoints;
