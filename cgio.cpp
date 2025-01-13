@@ -61,13 +61,16 @@ void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
 void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles) {
     ax->hold(true);
 
+    bool first = true;
     for (dcircle &circle : circles) {
         auto points = sample_circle(circle, 100);
         std::vector<double> x(points.size()), y(points.size());
         std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
         std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
 
-        ax->plot(x, y, "k");
+        const char *color = first ? "r" : "k";
+        ax->plot(x, y, color);
+        first = false;
     }
 }
 

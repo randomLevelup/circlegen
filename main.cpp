@@ -27,15 +27,15 @@ int main(int argc, char const *argv[])
 
     // do processing lol
 
-    int numcircles = 11;
-    std::vector<dcircle> circles = generateCircles(points, numcircles);
+    int numcircles = 1;
+    std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles);
 
     // render
     auto fig = matplot::figure(true);
     auto ax = fig->current_axes();
     ax->y_axis().reverse(true);
-    renderPoints(ax, points);
-    renderCircles(ax, circles);
+    renderCircles(ax, std::get<0>(result));
+    renderPoints(ax, std::get<1>(result));
 
     fig->save("output.jpg");
 

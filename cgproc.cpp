@@ -20,11 +20,13 @@
 #include "cgproc.h"
 #include "cgio.h"
 
-static dpoint *loadPointArray(const dpointlist &pointlist);
-static Eigen::VectorXd spawnCircle(dpoint *pointArray, int numPoints, int startIndex);
-std::vector<dcircle> generateCircles(dpointlist &pointlist, int num);
+static dpoint *pointListToArray(const dpointlist &pointlist);
+static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
+static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
+static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num);
 
-static dpoint *loadPointArray(const dpointlist &pointlist) {
+static dpoint *pointListToArray(const dpointlist &pointlist) {
     dpoint *pointarray = new dpoint[pointlist.size()];
     for (unsigned i = 0; i < pointlist.size(); ++i) {
         pointarray[i].x = std::get<0>(pointlist[i]);
@@ -33,9 +35,37 @@ static dpoint *loadPointArray(const dpointlist &pointlist) {
     return pointarray;
 }
 
-static Eigen::VectorXd spawnCircle(dpoint *pointArray, int numPoints, int startIndex) {
+static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start) {
+    dpointlist pointlist;
+    for (unsigned i = start; i < num; ++i) {
+        pointlist.push_back(std::make_tuple(pointArray[i].x, pointArray[i].y));
+    }
+    return pointlist;
+}
+
+static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle) {
+    double cx, cy, r, dist;
+    cx = circle(0);
+    cy = circle(1);
+    r = circle(2);
+
+    int deleted = 0;
+    for (unsigned i = start; i < num; ++i) {
+        dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
+                         (pointArray[i].y - cy) * (pointArray[i].y - cy));
+        if (std::abs(dist - r) < 2) {
+            std::swap(pointArray[i], pointArray[start]);
+            start++;
+            deleted++;
+        }
+    }
+    printf("deleted %d points\n", deleted);
+    return start;
+}
+
+static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex) {
     std::cout << "numPoints: " << numPoints << ", startIndex: " << startIndex << std::endl;
-    assert(startIndex >= 0 && startIndex < numPoints);
+    assert(startIndex < numPoints);
     std::random_device rd;
     std::mt19937 gen(rd());
     // pick 2 random points from pointArray between startIndex and numPoints
@@ -51,17 +81,17 @@ static Eigen::VectorXd spawnCircle(dpoint *pointArray, int numPoints, int startI
     return params;
 }
 
-std::vector<dcircle> generateCircles(dpointlist &pointlist, int num) {
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num) {
     std::cout << "creating optimizer\n";
-    dpoint *pointArray = loadPointArray(pointlist);
+    dpoint *pointArray = pointListToArray(pointlist);
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
-    optimizer.setMaxIterations(200); // Increased max iterations for better convergence
-    optimizer.setMinGradientLength(1e-4); // Tighter gradient tolerance
-    optimizer.setMinStepLength(1e-4); // Tighter step length tolerance
-    optimizer.setMomentum(0.9); // Increased momentum to help with dependencies
-    optimizer.setVerbosity(1);
+    optimizer.setMaxIterations(400); // Increased max iterations for better convergence
+    optimizer.setMinGradientLength(1e-11); // Tighter gradient tolerance
+    optimizer.setMinStepLength(1e-12); // Tighter step length tolerance
+    optimizer.setMomentum(0.1); // Increased momentum to help with dependencies
+    optimizer.setVerbosity(0);
 
     std::cout << "generating circles\n";
     std::vector<dcircle> circles;
@@ -79,49 +109,30 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, int num) {
         circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
 
         // update pointArray
-        opt.startIndex = opt.numPoints; // temp
+        opt.startIndex = trimPointArray(pointArray, opt.numPoints, opt.startIndex, result.xval);
     }
-
+    std::tuple<std::vector<dcircle>, dpointlist> result = std::make_tuple(
+        circles,
+        pointArrayToList(pointArray, opt.numPoints, opt.startIndex)
+    );
     delete[] pointArray;
-    return circles;
+    return result;
 }
 
-double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const {
+double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
     double total_loss = 0.0;
-    grad.setZero(params.size());
 
-    double a, b, c, r, cx, cy, px, py, dist2, distc, distp, distn, distn2, loss, dl, dx, dy, dr;
-    a = 1.0;
-    c = 0.18;
+    double cx, cy, r, dist, loss;
     cx = params(0);
     cy = params(1);
     r = params(2);
-    b = std::pow(r, (2.0/3.0));
 
     for (unsigned i = startIndex; i < numPoints; ++i) {
-        px = pointArray[i].x;
-        py = pointArray[i].y;
-
-        dist2 = (cx - px) * (cx - px) + (cy - py) * (cy - py);
-        if (std::abs(dist2) < 1e-6) {dist2 += 1e-6;}
-        distc = std::sqrt(std::abs(dist2));
-        distp = (r - distc == 0) ? 1e-6 : r - distc;
-        distn = c * (b - std::abs(distp));
-        distn2 = c * (abs(distp) - b);
-
-        loss = a / ( 1 + std::exp( -c * (std::abs(distc - r) - b) ));
+        dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
+                         (pointArray[i].y - cy) * (pointArray[i].y - cy));
+        loss = std::sqrt(std::abs(dist - r));
         total_loss += loss;
-
-        dl = (a * c * dist2 ) / (std::pow(std::abs(dist2), 1.5) * std::abs(distp) * std::pow(exp(distn + 1), 2));
-        dx = (cx - px) * (distc - b) * std::exp(distn) * dl;
-        dy = (cy - py) * (b - distc) * std::exp(distn2) * dl;
-        dr = (a * c * ((distp / std::abs(distp)) - (2 / (3 * std::cbrt(r)))) * std::exp(distn) /
-             std::pow((std::exp(distn) + 1), 2));
-
-        grad(0) += dx;
-        grad(1) += dy;
-        grad(2) += dr;
     }
     total_loss /= (double)numPoints;
-    return total_loss;
+    return total_loss * 100;
 }

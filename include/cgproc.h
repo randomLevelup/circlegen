@@ -38,4 +38,4 @@ struct CircleOptimization {
  * @param num number of circles
  * @return vector of n circles
  */
-std::vector<dcircle> generateCircles(dpointlist &points, int num);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num);
