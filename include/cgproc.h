@@ -6,19 +6,30 @@
  */
 
 #include <tuple>
+#include <sstream>
 
 #pragma once
 
 typedef std::vector<std::tuple<float, float>> dpointlist;
 typedef std::tuple<float, float, float> dcircle;
+typedef std::stringstream PixelStream;
 
 /**
  * @brief point object for cacheability
  */
-struct dpoint {
+struct dpoint_ {
     double x;
     double y;
-}; typedef struct dpoint dpoint;
+}; typedef struct dpoint_ dpoint;
+
+/**
+ * @brief pixel struct for streaming
+ */
+struct dpixel_ {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+}; typedef struct dpixel_ dpixel;
 
 /**
  * @brief optimization object for circle fitting
@@ -39,3 +50,10 @@ struct CircleOptimization {
  * @return vector of n circles
  */
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num);
+
+/**
+ * @brief get a stream of rgb pixels from an svg file
+ * @param filename 
+ * @return A stringstream object of pixels
+ */
+PixelStream getSVGStream(const char *filename);

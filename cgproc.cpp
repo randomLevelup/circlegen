@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <random>
 #include <tuple>
@@ -17,6 +18,9 @@
 #include <Eigen/Core>
 #include "gdcpp.h"
 
+#include <cairo.h>
+#include <librsvg/rsvg.h>
+
 #include "cgproc.h"
 #include "cgio.h"
 
@@ -25,6 +29,7 @@ static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsig
 static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
 static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num);
+PixelStream getSVGStream(const char *filename);
 
 static dpoint *pointListToArray(const dpointlist &pointlist) {
     dpoint *pointarray = new dpoint[pointlist.size()];
@@ -136,4 +141,42 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
     }
     total_loss /= (double)numPoints;
     return total_loss * 100;
+}
+
+PixelStream getSVGStream(const char *filename) {
+    PixelStream res = PixelStream();
+
+    RsvgHandle *handle = rsvg_handle_new_from_file(filename, NULL);
+    if (!handle) {
+        std::cerr << "Error: Unable to create RsvgHandle from file " << filename << std::endl;
+        return res;
+    }
+
+    RsvgDimensionData dimensions;
+    gdouble width, height;
+    rsvg_handle_get_intrinsic_size_in_pixels(handle, &width, &height);
+    dimensions.width = static_cast<int>(width);
+    dimensions.height = static_cast<int>(height);
+
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, dimensions.width, dimensions.height);
+    cairo_t *cr = cairo_create(surface);
+
+    RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};
+    rsvg_handle_render_document(handle, cr, &viewport, NULL);
+
+    unsigned char *data = cairo_image_surface_get_data(surface);
+    int stride = cairo_image_surface_get_stride(surface);
+
+    for (int y = 0; y < dimensions.height; ++y) {
+        for (int x = 0; x < dimensions.width; ++x) {
+            unsigned char *pixel = data + y * stride + x * 4;
+            res << pixel[2] << pixel[1] << pixel[0];
+        }
+    }
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+    g_object_unref(handle);
+
+    return res;
 }

@@ -28,14 +28,15 @@ using namespace tinyxml2;
 #define P_PI 3.14159265358979323846
 
 void renderImage(const dbundle &bundle, const int scaleFactor);
-static dpointlist sample_circle(dcircle &circle, int num_samples);
+static void drawFill(QPainter &painter, const dbundle &bundle, const int scaleFactor, const int padding);
 
+static dpointlist sample_circle(dcircle &circle, int num_samples);
 dpointlist samplePaths(pathbundle &pb, float res);
+
 static dpointlist sample_line(dline &line, float res, std::mt19937 gen);
 static dpointlist sample_quad(dquad &quad, float res, std::mt19937 gen);
 static dpointlist sample_cubic(dcubic &cubic, float res, std::mt19937 gen);
 static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen);
-static dpointlist sample_circle(dcircle &circle, int num_samples);
 
 pathbundle parseSVG(const char *filename);
 static void parsePath(const char *d, pathbundle &bundle);
@@ -73,6 +74,9 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(image.rect(), Qt::white);
 
+    // Draw fill colors
+    drawFill(painter, bundle, scaleFactor, padding);
+
     // Draw circles
     painter.setPen(Qt::black);
     for (const auto &circle : std::get<0>(bundle)) {
@@ -92,6 +96,22 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     }
 
     image.save("output.jpg");
+}
+
+static void drawFill(QPainter &painter, const dbundle &bundle, const int scaleFactor, const int padding) {
+    painter.setPen(Qt::NoPen);
+    
+    // initialize overlap groups (a vector of vectors of circle-indices) where each element is a unique overlapping of circles
+
+    
+    // iterate over all pixels in the image.
+
+
+    // 
+    (void)painter;
+    (void)bundle;
+    (void)scaleFactor;
+    (void)padding;
 }
 
 static dpointlist sample_circle(dcircle &circle, int num_samples) {

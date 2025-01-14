@@ -1,9 +1,12 @@
 # Filenames
 .vscode/
 /include/eigen3/
+/include/cairo/
+/include/librsvg/
 /build/*
 not_repo_token.txt
 circlegen
+.gitignore
 
 # Images
 *.svg

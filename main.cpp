@@ -28,6 +28,8 @@ int main(int argc, char *argv[]) {
 
     std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles);
 
+    PixelStream pstream = getSVGStream(filename);
+
     const int scaleFactor = 10;
     renderImage(result, scaleFactor);
 
