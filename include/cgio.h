@@ -8,9 +8,6 @@
 #include <tuple>
 #include <vector>
 #include <random>
-#include <QApplication>
-
-#include <matplot/matplot.h>
 
 #pragma once
 
@@ -45,15 +42,6 @@ pathbundle parseSVG(const char *filename);
  * @return dpointlist of sampled points
  */
 dpointlist samplePaths(pathbundle &pb, float res);
-
-/**
- * @brief render all points to a matplot axis
- * @param ax axis ptr to render to
- * @param points list of all points to render
- */
-void renderPoints(matplot::axes_handle &ax, dpointlist &points);
-
-void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);
 
 /**
  * @brief render circles and points and save as "output.jpg"

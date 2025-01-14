@@ -1,6 +1,5 @@
 # Filenames
 .vscode/
-/include/matplot/
 /include/eigen3/
 /build/*
 not_repo_token.txt

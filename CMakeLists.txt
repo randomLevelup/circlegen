@@ -12,9 +12,9 @@ find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
 include_directories(include /usr/local/include /usr/include/eigen3)
 
-link_directories(./lib /usr/lib /usr/local/lib/Matplot++)
+link_directories(./lib /usr/lib)
 
 add_executable(circlegen cgio.cpp cgproc.cpp main.cpp)
 
-target_link_libraries(circlegen Qt5::Widgets tinyxml2 matplot nodesoup)
+target_link_libraries(circlegen Qt5::Widgets tinyxml2)
 target_link_options(circlegen PRIVATE -fopenmp)

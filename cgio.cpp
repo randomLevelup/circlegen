@@ -21,22 +21,14 @@
 #include <QWidget>
 #include <QPainter>
 #include <QImage>
-#include <matplot/matplot.h>
 
 using namespace tinyxml2;
 
 #define BEZ_RES 10
 #define P_PI 3.14159265358979323846
 
-void renderPoints(matplot::axes_handle &ax, dpointlist &points);
-void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);
 void renderImage(const dbundle &bundle, const int scaleFactor);
 static dpointlist sample_circle(dcircle &circle, int num_samples);
-
-// static void plotLines(matplot::axes_handle ax, const std::vector<dline> &lines);
-// static void plotQuads(matplot::axes_handle ax, const std::vector<dquad> &quads);
-// static void plotCubics(matplot::axes_handle ax, const std::vector<dcubic>& cubics);
-// static void plotArcs(matplot::axes_handle ax, const std::vector<darc>& arcs);
 
 dpointlist samplePaths(pathbundle &pb, float res);
 static dpointlist sample_line(dline &line, float res, std::mt19937 gen);
@@ -47,36 +39,6 @@ static dpointlist sample_circle(dcircle &circle, int num_samples);
 
 pathbundle parseSVG(const char *filename);
 static void parsePath(const char *d, pathbundle &bundle);
-
-void renderPoints(matplot::axes_handle &ax, dpointlist &points) {
-    ax->hold(true);
-
-    std::vector<double> x(points.size()), y(points.size());
-    std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
-    std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
-
-    ax->scatter(x, y)->marker_face_color("k").marker_size(2);
-
-    ax->x_axis().visible(false);
-    ax->y_axis().visible(false);
-    ax->box(false);
-}
-
-void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles) {
-    ax->hold(true);
-
-    bool first = true;
-    for (dcircle &circle : circles) {
-        auto points = sample_circle(circle, 100);
-        std::vector<double> x(points.size()), y(points.size());
-        std::transform(points.begin(), points.end(), x.begin(), [](const auto& point) { return std::get<0>(point); });
-        std::transform(points.begin(), points.end(), y.begin(), [](const auto& point) { return std::get<1>(point); });
-
-        const char *color = first ? "b" : "k";
-        ax->plot(x, y, color);
-        // first = false;
-    }
-}
 
 void renderImage(const dbundle &bundle, const int scaleFactor) {
     // Compute bounds based only on points
