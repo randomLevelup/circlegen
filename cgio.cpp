@@ -18,6 +18,9 @@
 #include <cmath>
 #include <random>
 
+#include <QWidget>
+#include <QPainter>
+#include <QImage>
 #include <matplot/matplot.h>
 
 using namespace tinyxml2;
@@ -27,6 +30,7 @@ using namespace tinyxml2;
 
 void renderPoints(matplot::axes_handle &ax, dpointlist &points);
 void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);
+void renderImage(const dbundle &bundle, const int scaleFactor);
 static dpointlist sample_circle(dcircle &circle, int num_samples);
 
 // static void plotLines(matplot::axes_handle ax, const std::vector<dline> &lines);
@@ -72,6 +76,60 @@ void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles) {
         ax->plot(x, y, color);
         // first = false;
     }
+}
+
+void renderImage(const dbundle &bundle, const int scaleFactor) {
+    // Compute bounds based only on points
+    float minX = std::numeric_limits<float>::max();
+    float minY = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float maxY = std::numeric_limits<float>::lowest();
+
+    for (const auto &point : std::get<1>(bundle)) {
+        float px = std::get<0>(point);
+        float py = std::get<1>(point);
+        minX = std::min(minX, px);
+        minY = std::min(minY, py);
+        maxX = std::max(maxX, px);
+        maxY = std::max(maxY, py);
+    }
+
+    int width = static_cast<int>(maxX - minX);
+    int height = static_cast<int>(maxY - minY);
+
+    // Scale up the 2D space
+    width *= scaleFactor;
+    height *= scaleFactor;
+
+    // Add padding
+    const int padding = scaleFactor * 5;
+    width += 2 * padding;
+    height += 2 * padding;
+
+    QImage image(width, height, QImage::Format_RGB32);
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.fillRect(image.rect(), Qt::white);
+
+    // Draw circles
+    painter.setPen(Qt::black);
+    for (const auto &circle : std::get<0>(bundle)) {
+        float cx = (std::get<0>(circle) - minX) * scaleFactor + padding;
+        float cy = (std::get<1>(circle) - minY) * scaleFactor + padding;
+        float r = std::get<2>(circle) * scaleFactor;
+        painter.drawEllipse(QPointF(cx, cy), r, r);
+    }
+
+    // Draw points
+    painter.setPen(Qt::red);
+    const int pointSize = 2; // Scale factor for point size
+    for (const auto &point : std::get<1>(bundle)) {
+        float px = (std::get<0>(point) - minX) * scaleFactor + padding;
+        float py = (std::get<1>(point) - minY) * scaleFactor + padding;
+        painter.drawEllipse(QPointF(px, py), pointSize, pointSize);
+    }
+
+    image.save("output.jpg");
 }
 
 static dpointlist sample_circle(dcircle &circle, int num_samples) {

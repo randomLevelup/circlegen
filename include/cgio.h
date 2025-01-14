@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 #include <random>
+#include <QApplication>
 
 #include <matplot/matplot.h>
 
@@ -28,6 +29,7 @@ typedef std::tuple<std::vector<dline>,
                    std::vector<darc>> pathbundle;
 
 typedef std::tuple<float, float, float> dcircle;
+typedef std::tuple<std::vector<dcircle>, dpointlist> dbundle;
 
 /**
  * @brief 
@@ -52,3 +54,11 @@ dpointlist samplePaths(pathbundle &pb, float res);
 void renderPoints(matplot::axes_handle &ax, dpointlist &points);
 
 void renderCircles(matplot::axes_handle &ax, std::vector<dcircle> &circles);
+
+/**
+ * @brief render circles and points and save as "output.jpg"
+ * @param bundle bundle with a vector of dcircles and a dpointlist
+ * @param scaleFactor integer resolution scalar
+ * @param app QApplication instance
+ */
+void renderImage(const dbundle &bundle, const int scaleFactor);
