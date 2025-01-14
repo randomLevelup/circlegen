@@ -78,7 +78,9 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     drawFill(painter, bundle, scaleFactor, padding);
 
     // Draw circles
-    painter.setPen(Qt::black);
+    QPen pen(Qt::black);
+    pen.setWidth(2.5);
+    painter.setPen(pen);
     for (const auto &circle : std::get<0>(bundle)) {
         float cx = (std::get<0>(circle) - minX) * scaleFactor + padding;
         float cy = (std::get<1>(circle) - minY) * scaleFactor + padding;

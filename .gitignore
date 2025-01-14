@@ -3,6 +3,8 @@
 /include/eigen3/
 /include/cairo/
 /include/librsvg/
+/include/glib2/
+/include/dummy/
 /build/*
 not_repo_token.txt
 circlegen

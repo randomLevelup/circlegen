@@ -23,10 +23,14 @@ include_directories(
     ${RSVG_INCLUDE_DIRS}
 )
 
+# Exclude the include/dummy/ directory
+set(EXCLUDE_DIRS "include/dummy")
+
 link_directories(./lib /usr/lib)
 
 add_executable(circlegen cgio.cpp cgproc.cpp main.cpp)
 
+target_compile_options(circlegen PRIVATE -g3)
 target_link_libraries(circlegen 
     Qt5::Widgets 
     tinyxml2 
@@ -34,4 +38,4 @@ target_link_libraries(circlegen
     ${CAIRO_LIBRARIES} 
     ${RSVG_LIBRARIES}
 )
-target_link_options(circlegen PRIVATE -fopenmp)
+target_link_options(circlegen PRIVATE -fopenmp -g3)

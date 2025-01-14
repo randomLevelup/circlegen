@@ -146,9 +146,12 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
 PixelStream getSVGStream(const char *filename) {
     PixelStream res = PixelStream();
 
-    RsvgHandle *handle = rsvg_handle_new_from_file(filename, NULL);
+    GError *error = NULL;
+    RsvgHandle *handle = rsvg_handle_new_from_file(filename, &error);
     if (!handle) {
-        std::cerr << "Error: Unable to create RsvgHandle from file " << filename << std::endl;
+        std::cerr << "Error: Unable to create RsvgHandle from file " << filename << ": " << error->message << std::endl;
+        g_error_free(error);
+        g_object_unref(handle);
         return res;
     }
 
@@ -159,10 +162,29 @@ PixelStream getSVGStream(const char *filename) {
     dimensions.height = static_cast<int>(height);
 
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, dimensions.width, dimensions.height);
+    if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
+        std::cerr << "Error: Unable to create cairo surface" << std::endl;
+        g_object_unref(handle);
+        return res;
+    }
+
     cairo_t *cr = cairo_create(surface);
+    if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
+        std::cerr << "Error: Unable to create cairo context" << std::endl;
+        cairo_surface_destroy(surface);
+        g_object_unref(handle);
+        return res;
+    }
 
     RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};
-    rsvg_handle_render_document(handle, cr, &viewport, NULL);
+    if (!rsvg_handle_render_document(handle, cr, &viewport, &error)) {
+        std::cerr << "Error: Unable to render SVG document: " << error->message << std::endl;
+        g_error_free(error);
+        cairo_destroy(cr);
+        cairo_surface_destroy(surface);
+        g_object_unref(handle);
+        return res;
+    }
 
     unsigned char *data = cairo_image_surface_get_data(surface);
     int stride = cairo_image_surface_get_stride(surface);

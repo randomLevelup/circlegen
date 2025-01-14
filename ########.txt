@@ -1,0 +1,10 @@
+########
+
+initialize o-group memo
+
+sample pixel-by-pixel
+each iter:
+	compute overlap group
+	if not memoized, compute o-group color
+	& memoize
+	& color pixel
