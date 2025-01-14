@@ -4,11 +4,7 @@ project(circlegen)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
 pkg_check_modules(CAIRO REQUIRED cairo)
@@ -30,12 +26,11 @@ link_directories(./lib /usr/lib)
 
 add_executable(circlegen cgio.cpp cgproc.cpp main.cpp)
 
-target_compile_options(circlegen PRIVATE -g3)
+target_compile_options(circlegen PRIVATE -O2)
 target_link_libraries(circlegen 
-    Qt5::Widgets 
     tinyxml2 
     ${GLIB_LIBRARIES} 
     ${CAIRO_LIBRARIES} 
     ${RSVG_LIBRARIES}
 )
-target_link_options(circlegen PRIVATE -fopenmp -g3)
+target_link_options(circlegen PRIVATE -fopenmp -O2)

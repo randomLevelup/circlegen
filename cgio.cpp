@@ -18,9 +18,7 @@
 #include <cmath>
 #include <random>
 
-#include <QWidget>
-#include <QPainter>
-#include <QImage>
+#include <cairo.h>
 
 using namespace tinyxml2;
 
@@ -28,7 +26,7 @@ using namespace tinyxml2;
 #define P_PI 3.14159265358979323846
 
 void renderImage(const dbundle &bundle, const int scaleFactor);
-static void drawFill(QPainter &painter, const dbundle &bundle, const int scaleFactor, const int padding);
+static void drawFill(cairo_t *cr, const dbundle &bundle, const int scaleFactor, const int padding);
 
 static dpointlist sample_circle(dcircle &circle, int num_samples);
 dpointlist samplePaths(pathbundle &pb, float res);
@@ -69,48 +67,47 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     width += 2 * padding;
     height += 2 * padding;
 
-    QImage image(width, height, QImage::Format_RGB32);
-    QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(image.rect(), Qt::white);
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
 
-    // Draw fill colors
-    drawFill(painter, bundle, scaleFactor, padding);
+    // Fill background with white
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_paint(cr);
 
     // Draw circles
-    QPen pen(Qt::black);
-    pen.setWidth(2.5);
-    painter.setPen(pen);
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_set_line_width(cr, 2.5);
     for (const auto &circle : std::get<0>(bundle)) {
         float cx = (std::get<0>(circle) - minX) * scaleFactor + padding;
         float cy = (std::get<1>(circle) - minY) * scaleFactor + padding;
         float r = std::get<2>(circle) * scaleFactor;
-        painter.drawEllipse(QPointF(cx, cy), r, r);
+        cairo_arc(cr, cx, cy, r, 0, 2 * P_PI);
+        cairo_stroke(cr);
     }
 
     // Draw points
-    painter.setPen(Qt::red);
+    cairo_set_source_rgb(cr, 1, 0, 0);
     const int pointSize = 2; // Scale factor for point size
     for (const auto &point : std::get<1>(bundle)) {
         float px = (std::get<0>(point) - minX) * scaleFactor + padding;
         float py = (std::get<1>(point) - minY) * scaleFactor + padding;
-        painter.drawEllipse(QPointF(px, py), pointSize, pointSize);
+        cairo_arc(cr, px, py, pointSize, 0, 2 * P_PI);
+        cairo_fill(cr);
     }
 
-    image.save("output.jpg");
+    cairo_surface_write_to_png(surface, "output.png");
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
 }
 
-static void drawFill(QPainter &painter, const dbundle &bundle, const int scaleFactor, const int padding) {
-    painter.setPen(Qt::NoPen);
-    
+static void drawFill(cairo_t *cr, const dbundle &bundle, const int scaleFactor, const int padding) {
     // initialize overlap groups (a vector of vectors of circle-indices) where each element is a unique overlapping of circles
 
-    
     // iterate over all pixels in the image.
 
-
     // 
-    (void)painter;
+    (void)cr;
     (void)bundle;
     (void)scaleFactor;
     (void)padding;
