@@ -7,8 +7,10 @@
 
 #include <tuple>
 #include <sstream>
+#include <Eigen/Core>
 
-#pragma once
+#ifndef CGPROC_H
+#define CGPROC_H
 
 typedef std::vector<std::tuple<float, float>> dpointlist;
 typedef std::tuple<float, float, float> dcircle;
@@ -23,15 +25,6 @@ struct dpoint_ {
 }; typedef struct dpoint_ dpoint;
 
 /**
- * @brief pixel struct for streaming
- */
-struct dpixel_ {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-}; typedef struct dpixel_ dpixel;
-
-/**
  * @brief optimization object for circle fitting
  */
 struct CircleOptimization {
@@ -40,7 +33,7 @@ struct CircleOptimization {
     unsigned startIndex;
     CircleOptimization() = default;
     CircleOptimization(const dpoint *points, unsigned numPoints) : pointArray(points), numPoints(numPoints), startIndex(0) {}
-    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &grad) const;
+    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const;
 };
 
 /**
@@ -50,3 +43,5 @@ struct CircleOptimization {
  * @return vector of n circles
  */
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num, float sf);
+
+#endif

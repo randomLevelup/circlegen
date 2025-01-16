@@ -9,7 +9,10 @@
 #include <vector>
 #include <random>
 
-#pragma once
+#include "cgfill.h"
+
+#ifndef CGIO_H
+#define CGIO_H
 
 typedef std::uniform_real_distribution<float> udist;
 
@@ -51,4 +54,6 @@ dpointlist samplePaths(pathbundle &pb, float res);
  * @param h image height
  * @param sf scale factor (integer)
  */
-void renderImage(const dbundle &bundle, const float w, const float h, const int sf);
+void renderImage(const dbundle &bundle, dpixmap colors, const float w, const float h, const int sf);
+
+#endif

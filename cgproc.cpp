@@ -88,7 +88,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
-    optimizer.setMaxIterations(300);
+    optimizer.setMaxIterations(350);
     optimizer.setMinGradientLength(1e-11);
     optimizer.setMinStepLength(1e-11);
     optimizer.setMomentum(0.9);

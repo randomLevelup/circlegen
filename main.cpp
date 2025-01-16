@@ -39,16 +39,21 @@ int main(int argc, char *argv[]) {
     const float height = std::get<5>(pb);
     const float scaleFactor = (width + height) / 2.0;
     std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, scaleFactor);
+    std::cout << "# Points remaining: " << std::get<1>(result).size() << std::endl;
 
     dpixmap pm = getSVGColorMap(filename);
     std::cout << "Got color map." << std::endl;
 
-    std::cout << "Number of points: " << std::get<1>(result).size() << std::endl;
+    std::vector<dcircle> res_circles = std::get<0>(result);
+    dpixmap qpm = quantizeColors(pm, res_circles);
+    std::cout << "Quantized color map." << std::endl;
 
     const int scale = 10;
     std::cout << "Rendering image with width: " << width << ", height: " << height << ", scale factor: " << scale << std::endl;
-    renderImage(result, width, height, scale);
+    renderImage(result, qpm, width, height, scale);
 
+    free(pm.data);
+    free(qpm.data);
     std::cout << "Program finished." << std::endl;
     return 0;
 }
