@@ -3,8 +3,10 @@
 #include <limits>
 
 #include "gdcpp.h"
+
 #include "cgio.h"
 #include "cgproc.h"
+#include "cgfill.h"
 
 int main(int argc, char *argv[]) {
     std::cout << "Starting program..." << std::endl;
@@ -38,7 +40,8 @@ int main(int argc, char *argv[]) {
     const float scaleFactor = (width + height) / 2.0;
     std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, scaleFactor);
 
-    // PixelStream pstream = getSVGStream(filename);
+    dpixmap pm = getSVGColorMap(filename);
+    std::cout << "Got color map." << std::endl;
 
     std::cout << "Number of points: " << std::get<1>(result).size() << std::endl;
 

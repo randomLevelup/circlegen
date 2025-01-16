@@ -50,10 +50,3 @@ struct CircleOptimization {
  * @return vector of n circles
  */
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num, float sf);
-
-/**
- * @brief get a stream of rgb pixels from an svg file
- * @param filename 
- * @return A stringstream object of pixels
- */
-PixelStream getSVGStream(const char *filename);

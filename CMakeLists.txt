@@ -27,6 +27,7 @@ link_directories(./lib /usr/lib)
 add_executable(circlegen cgio.cpp cgproc.cpp cgfill.cpp main.cpp)
 
 target_compile_options(circlegen PRIVATE -O2)
+set_source_files_properties(cgfill.cpp PROPERTIES COMPILE_FLAGS -Wno-deprecated-declarations)
 target_link_libraries(circlegen 
     tinyxml2 
     ${GLIB_LIBRARIES} 

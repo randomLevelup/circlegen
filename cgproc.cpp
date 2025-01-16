@@ -18,18 +18,15 @@
 #include <Eigen/Core>
 #include "gdcpp.h"
 
-#include <cairo.h>
-#include <librsvg/rsvg.h>
-
 #include "cgproc.h"
 #include "cgio.h"
+#include "cgfill.h"
 
 static dpoint *pointListToArray(const dpointlist &pointlist);
 static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
 static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
 static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf);
-PixelStream getSVGStream(const char *filename);
 
 static dpoint *pointListToArray(const dpointlist &pointlist) {
     dpoint *pointarray = new dpoint[pointlist.size()];
@@ -91,9 +88,9 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
-    optimizer.setMaxIterations(250);
-    optimizer.setMinGradientLength(1e-9);
-    optimizer.setMinStepLength(1e-9);
+    optimizer.setMaxIterations(300);
+    optimizer.setMinGradientLength(1e-11);
+    optimizer.setMinStepLength(1e-11);
     optimizer.setMomentum(0.9);
     optimizer.setVerbosity(0);
 
@@ -135,70 +132,10 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
         loss = std::sqrt(std::abs(dist - r));
-        std::cout << "loss: " << loss << std::endl;
-        loss = (loss > 2.0) ? 1.0 : loss;
+        // std::cout << "loss: " << loss << std::endl;
+        loss = (loss > 0.05) ? 0.05 : loss;
         total_loss += loss;
     }
     total_loss /= (double)numPoints;
-    return total_loss * 100;
-}
-
-PixelStream getSVGStream(const char *filename) {
-    PixelStream res = PixelStream();
-
-    GError *error = NULL;
-    RsvgHandle *handle = rsvg_handle_new_from_file(filename, &error);
-    if (!handle) {
-        std::cerr << "Error: Unable to create RsvgHandle from file " << filename << ": " << error->message << std::endl;
-        g_error_free(error);
-        g_object_unref(handle);
-        return res;
-    }
-
-    RsvgDimensionData dimensions;
-    gdouble width, height;
-    rsvg_handle_get_intrinsic_size_in_pixels(handle, &width, &height);
-    dimensions.width = static_cast<int>(width);
-    dimensions.height = static_cast<int>(height);
-
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, dimensions.width, dimensions.height);
-    if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
-        std::cerr << "Error: Unable to create cairo surface" << std::endl;
-        g_object_unref(handle);
-        return res;
-    }
-
-    cairo_t *cr = cairo_create(surface);
-    if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
-        std::cerr << "Error: Unable to create cairo context" << std::endl;
-        cairo_surface_destroy(surface);
-        g_object_unref(handle);
-        return res;
-    }
-
-    RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};
-    if (!rsvg_handle_render_document(handle, cr, &viewport, &error)) {
-        std::cerr << "Error: Unable to render SVG document: " << error->message << std::endl;
-        g_error_free(error);
-        cairo_destroy(cr);
-        cairo_surface_destroy(surface);
-        g_object_unref(handle);
-        return res;
-    }
-
-    unsigned char *data = cairo_image_surface_get_data(surface);
-    int stride = cairo_image_surface_get_stride(surface);
-
-    for (int y = 0; y < dimensions.height; ++y) {
-        for (int x = 0; x < dimensions.width; ++x) {
-            unsigned char *pixel = data + y * stride + x * 4;
-            res << pixel[2] << pixel[1] << pixel[0];
-        }
-    }
-
-    cairo_destroy(cr);
-    cairo_surface_destroy(surface);
-    g_object_unref(handle);
-
-    return res;
+    return total_loss;
 }
