@@ -43,11 +43,6 @@ void renderImage(const dbundle &bundle, const float w, const float h, const int 
     int width = static_cast<int>(w * sf);
     int height = static_cast<int>(h * sf);
 
-    // Add padding
-    const int padding = sf * 5;
-    width += 2 * padding;
-    height += 2 * padding;
-
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
     cairo_t *cr = cairo_create(surface);
 
@@ -59,8 +54,8 @@ void renderImage(const dbundle &bundle, const float w, const float h, const int 
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_set_line_width(cr, 2.5);
     for (const auto &circle : std::get<0>(bundle)) {
-        float cx = std::get<0>(circle) * w * sf + padding;
-        float cy = std::get<1>(circle) * h * sf + padding;
+        float cx = std::get<0>(circle) * w * sf;
+        float cy = std::get<1>(circle) * h * sf;
         float r = std::get<2>(circle) * sf;
         cairo_arc(cr, cx, cy, r, 0, 2 * P_PI);
         cairo_stroke(cr);
@@ -70,8 +65,8 @@ void renderImage(const dbundle &bundle, const float w, const float h, const int 
     cairo_set_source_rgb(cr, 1, 0, 0);
     const int pointSize = 2; // Scale factor for point size
     for (const auto &point : std::get<1>(bundle)) {
-        float px = std::get<0>(point) * w * sf + padding;
-        float py = std::get<1>(point) * h * sf + padding;
+        float px = std::get<0>(point) * w * sf;
+        float py = std::get<1>(point) * h * sf;
         cairo_arc(cr, px, py, pointSize, 0, 2 * P_PI);
         cairo_fill(cr);
     }
