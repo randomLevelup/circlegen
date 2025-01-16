@@ -28,7 +28,7 @@ static dpoint *pointListToArray(const dpointlist &pointlist);
 static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
 static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
 static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf);
 PixelStream getSVGStream(const char *filename);
 
 static dpoint *pointListToArray(const dpointlist &pointlist) {
@@ -58,18 +58,17 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
     for (unsigned i = start; i < num; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        if (std::abs(dist - r) < 1.5) {
+        if (std::abs(dist - r) < 0.015) {
             std::swap(pointArray[i], pointArray[start]);
             start++;
             deleted++;
         }
     }
-    printf("deleted %d points\n", deleted);
+    printf("deleted %d points\n\n", deleted);
     return start;
 }
 
 static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex) {
-    std::cout << "numPoints: " << numPoints << ", startIndex: " << startIndex << std::endl;
     assert(startIndex < numPoints);
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -86,15 +85,15 @@ static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsig
     return params;
 }
 
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num) {
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf) {
     std::cout << "creating optimizer\n";
     dpoint *pointArray = pointListToArray(pointlist);
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
     optimizer.setMaxIterations(250);
-    optimizer.setMinGradientLength(1e-9);
-    optimizer.setMinStepLength(1e-9);
+    optimizer.setMinGradientLength(1e-7);
+    optimizer.setMinStepLength(1e-7);
     optimizer.setMomentum(0.9);
     optimizer.setVerbosity(0);
 
@@ -102,7 +101,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
-        // circles.push_back(std::make_tuple(params(0), params(1), params(2)));
+        circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
 
         // optimize params
         auto result = optimizer.minimize(params);
@@ -111,7 +110,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
         std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
 
         // update return vector
-        circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
+        circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2) * sf));
 
         // update pointArray
         opt.startIndex = trimPointArray(pointArray, opt.numPoints, opt.startIndex, result.xval);
@@ -140,7 +139,7 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
         total_loss += loss;
     }
     total_loss /= (double)numPoints;
-    return total_loss * 100;
+    return total_loss * 1;
 }
 
 PixelStream getSVGStream(const char *filename) {

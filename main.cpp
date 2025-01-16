@@ -33,19 +33,18 @@ int main(int argc, char *argv[]) {
     dpointlist points = samplePaths(pb, res);
     std::cout << "Sampled paths." << std::endl;
 
-    std::vector<dcircle> dummycirclelist = std::vector<dcircle>();
-    std::tuple<std::vector<dcircle>, dpointlist> result = std::make_tuple(dummycirclelist, points);
-    // std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles);
+    const float width = std::get<4>(pb);
+    const float height = std::get<5>(pb);
+    const float scaleFactor = (width + height) / 2.0;
+    std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, scaleFactor);
 
     // PixelStream pstream = getSVGStream(filename);
 
     std::cout << "Number of points: " << std::get<1>(result).size() << std::endl;
 
-    const float width = std::get<4>(pb);
-    const float height = std::get<5>(pb);
-    const int scaleFactor = 10;
-    std::cout << "Rendering image with width: " << width << ", height: " << height << ", scale factor: " << scaleFactor << std::endl;
-    renderImage(result, width, height, scaleFactor);
+    const int scale = 10;
+    std::cout << "Rendering image with width: " << width << ", height: " << height << ", scale factor: " << scale << std::endl;
+    renderImage(result, width, height, scale);
 
     std::cout << "Program finished." << std::endl;
     return 0;

@@ -49,7 +49,7 @@ struct CircleOptimization {
  * @param num number of circles
  * @return vector of n circles
  */
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num, float sf);
 
 /**
  * @brief get a stream of rgb pixels from an svg file
