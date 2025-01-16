@@ -58,7 +58,7 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
     for (unsigned i = start; i < num; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        if (std::abs(dist - r) < 0.015) {
+        if (std::abs(dist - r) < 0.03) {
             std::swap(pointArray[i], pointArray[start]);
             start++;
             deleted++;
@@ -92,8 +92,8 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
     optimizer.setMaxIterations(250);
-    optimizer.setMinGradientLength(1e-7);
-    optimizer.setMinStepLength(1e-7);
+    optimizer.setMinGradientLength(1e-9);
+    optimizer.setMinStepLength(1e-9);
     optimizer.setMomentum(0.9);
     optimizer.setVerbosity(0);
 
@@ -101,7 +101,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
-        circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
+        // circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
 
         // optimize params
         auto result = optimizer.minimize(params);
@@ -135,11 +135,12 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
         loss = std::sqrt(std::abs(dist - r));
+        std::cout << "loss: " << loss << std::endl;
         loss = (loss > 2.0) ? 1.0 : loss;
         total_loss += loss;
     }
     total_loss /= (double)numPoints;
-    return total_loss * 1;
+    return total_loss * 100;
 }
 
 PixelStream getSVGStream(const char *filename) {
