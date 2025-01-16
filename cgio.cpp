@@ -25,7 +25,7 @@ using namespace tinyxml2;
 #define BEZ_RES 10
 #define P_PI 3.14159265358979323846
 
-void renderImage(const dbundle &bundle, const int scaleFactor);
+void renderImage(const dbundle &bundle, const float w, const float h, const int sf);
 
 static dpointlist sample_circle(dcircle &circle, int num_samples);
 dpointlist samplePaths(pathbundle &pb, float res);
@@ -38,31 +38,13 @@ static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen);
 pathbundle parseSVG(const char *filename);
 static void parsePath(const char *d, pathbundle &bundle);
 
-void renderImage(const dbundle &bundle, const int scaleFactor) {
-    // Compute bounds based only on points
-    float minX = std::numeric_limits<float>::max();
-    float minY = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float maxY = std::numeric_limits<float>::lowest();
-
-    for (const auto &point : std::get<1>(bundle)) {
-        float px = std::get<0>(point);
-        float py = std::get<1>(point);
-        minX = std::min(minX, px);
-        minY = std::min(minY, py);
-        maxX = std::max(maxX, px);
-        maxY = std::max(maxY, py);
-    }
-
-    int width = static_cast<int>(maxX - minX);
-    int height = static_cast<int>(maxY - minY);
-
+void renderImage(const dbundle &bundle, const float w, const float h, const int sf) {
     // Scale up the 2D space
-    width *= scaleFactor;
-    height *= scaleFactor;
+    int width = static_cast<int>(w * sf);
+    int height = static_cast<int>(h * sf);
 
     // Add padding
-    const int padding = scaleFactor * 5;
+    const int padding = sf * 5;
     width += 2 * padding;
     height += 2 * padding;
 
@@ -77,9 +59,9 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_set_line_width(cr, 2.5);
     for (const auto &circle : std::get<0>(bundle)) {
-        float cx = (std::get<0>(circle) - minX) * scaleFactor + padding;
-        float cy = (std::get<1>(circle) - minY) * scaleFactor + padding;
-        float r = std::get<2>(circle) * scaleFactor;
+        float cx = std::get<0>(circle) * w * sf + padding;
+        float cy = std::get<1>(circle) * h * sf + padding;
+        float r = std::get<2>(circle) * sf;
         cairo_arc(cr, cx, cy, r, 0, 2 * P_PI);
         cairo_stroke(cr);
     }
@@ -88,8 +70,8 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
     cairo_set_source_rgb(cr, 1, 0, 0);
     const int pointSize = 2; // Scale factor for point size
     for (const auto &point : std::get<1>(bundle)) {
-        float px = (std::get<0>(point) - minX) * scaleFactor + padding;
-        float py = (std::get<1>(point) - minY) * scaleFactor + padding;
+        float px = std::get<0>(point) * w * sf + padding;
+        float py = std::get<1>(point) * h * sf + padding;
         cairo_arc(cr, px, py, pointSize, 0, 2 * P_PI);
         cairo_fill(cr);
     }
@@ -253,124 +235,166 @@ pathbundle parseSVG(const char *filename) {
     pathbundle bundle;
 
     XMLElement *svg = doc.FirstChildElement("svg");
-    for (XMLElement *el = svg->FirstChildElement(); el; el = el->NextSiblingElement()) {
-        std::string type = el->Name();
-        if (type == "path") {
-            const char *data = el->Attribute("d");
-            parsePath(data, bundle);
+    if (svg) {
+        const char *viewBoxStr = svg->Attribute("viewBox");
+
+        if (viewBoxStr) {
+            std::stringstream ss(viewBoxStr);
+            float minX, minY, width, height;
+            ss >> minX >> minY >> width >> height;
+            std::get<4>(bundle) = width;
+            std::get<5>(bundle) = height;
+        } else {
+            std::cerr << "Error: SVG viewBox not specified" << std::endl;
+            std::get<4>(bundle) = 0;
+            std::get<5>(bundle) = 0;
         }
+
+        for (XMLElement *el = svg->FirstChildElement(); el; el = el->NextSiblingElement()) {
+            std::string type = el->Name();
+            if (type == "path") {
+                const char *data = el->Attribute("d");
+                parsePath(data, bundle);
+            }
+        }
+    } else {
+        std::cerr << "Error: could not read svg element in " << filename << std::endl;
     }
 
     return bundle;
 }
 
 static void parsePath(const char *d, pathbundle &bundle) {
-    std::stringstream dss(d);
-            int pen[2] = {0, 0};
-            char command;
-            while (dss >> command) {
-                std::vector<float> params;
+    const float width = std::get<4>(bundle);
+    const float height = std::get<5>(bundle);
 
-                while (!isalpha(dss.peek()) && dss.peek() != EOF) {
-                    std::string cparam;
-                    char cc;
-                    while (dss >> cc) {
-                        cparam.push_back(cc);
-                        
-                        // if the next char is alpha or negative, break
-                        if (isalpha(dss.peek()) || dss.peek() == '-') {
-                            break;
-                        }
-                        // if next char is a separator, ignore it
-                        if (dss.peek() == ' ' || dss.peek() == ',') {
-                            dss.ignore(1);
-                            break;
-                        }
-                    }
-                    params.push_back(std::stof(cparam));
-                }
+    std::stringstream dss(d);
+    float pen[2] = {0, 0};
+    char command;
+    while (dss >> command) {
+        std::vector<float> params;
+
+        while (!isalpha(dss.peek()) && dss.peek() != EOF) {
+            std::string cparam;
+            char cc;
+            while (dss >> cc) {
+                cparam.push_back(cc);
                 
-                // process command
-                if (command == 'M') {
-                    pen[0] = params[0];
-                    pen[1] = params[1];
+                // if the next char is alpha or negative, break
+                if (isalpha(dss.peek()) || dss.peek() == '-') {
+                    break;
                 }
-                else if (command == 'L') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], params[1]));
-                    pen[0] = params[0];
-                    pen[1] = params[1];
-                }
-                else if (command == 'l') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0] + params[0], pen[1] + params[1]));
-                    pen[0] += params[0];
-                    pen[1] += params[1];
-                }
-                else if (command == 'H') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], pen[1]));
-                    pen[0] = params[0];
-                }
-                else if (command == 'h') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0] + params[0], pen[1]));
-                    pen[0] += params[0];
-                }
-                else if (command == 'V') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0], params[0]));
-                    pen[1] = params[0];
-                }
-                else if (command == 'v') {
-                    std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0], pen[1] + params[0]));
-                    pen[1] += params[0];
-                }
-                else if (command == 'Q') {
-                    std::get<1>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], params[1],
-                                                                  params[2], params[3]));
-                    pen[0] = params[2];
-                    pen[1] = params[3];
-                }
-                else if (command == 'q') {
-                    std::get<1>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0] + params[0], pen[1] + params[1],
-                                                                  pen[0] + params[2], pen[1] + params[3]));
-                }
-                else if (command == 'C') {
-                    std::get<2>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], params[1],
-                                                                  params[2], params[3],
-                                                                  params[4], params[5]));
-                    pen[0] = params[4];
-                    pen[1] = params[5];
-                }
-                else if (command == 'c') {
-                    std::get<2>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  pen[0] + params[0], pen[1] + params[1],
-                                                                  pen[0] + params[2], pen[1] + params[3],
-                                                                  pen[0] + params[4], pen[1] + params[5]));
-                    pen[0] += params[4];
-                    pen[1] += params[5];
-                }
-                else if (command == 'A') {
-                    std::get<3>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], params[1],
-                                                                  params[2], params[3], params[4],
-                                                                  params[5], params[6]));
-                    pen[0] = params[5];
-                    pen[1] = params[6];
-                }
-                else if (command == 'a') {
-                    std::get<3>(bundle).push_back(std::make_tuple(pen[0], pen[1],
-                                                                  params[0], params[1],
-                                                                  params[2], params[3], params[4],
-                                                                  pen[0] + params[5], pen[1] + params[6]));
-                    pen[0] += params[5];
-                    pen[1] += params[6];
+                // if next char is a separator, ignore it
+                if (dss.peek() == ' ' || dss.peek() == ',') {
+                    dss.ignore(1);
+                    break;
                 }
             }
+            params.push_back(std::stof(cparam));
+        }
+
+        // Convert coordinates to percentages, excluding angle parameters and flags
+        if (command == 'A' || command == 'a') {
+            for (size_t i = 0; i < params.size(); i += 7) {
+                params[i] /= width;       // rx
+                params[i + 1] /= height;  // ry
+                // params[i + 2] is the angle and should not be converted
+                // params[i + 3] and params[i + 4] are flags and should not be converted
+                params[i + 5] /= width;   // x
+                params[i + 6] /= height;  // y
+            }
+        } else {
+            for (size_t i = 0; i < params.size(); i += 2) {
+                params[i] /= width;
+                if (i + 1 < params.size()) {
+                    params[i + 1] /= height;
+                }
+            }
+        }
+        
+        // process command
+        if (command == 'M') {
+            pen[0] = params[0];
+            pen[1] = params[1];
+        }
+        else if (command == 'L') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], params[1]));
+            pen[0] = params[0];
+            pen[1] = params[1];
+        }
+        else if (command == 'l') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0] + params[0], pen[1] + params[1]));
+            pen[0] += params[0];
+            pen[1] += params[1];
+        }
+        else if (command == 'H') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], pen[1]));
+            pen[0] = params[0];
+        }
+        else if (command == 'h') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0] + params[0], pen[1]));
+            pen[0] += params[0];
+        }
+        else if (command == 'V') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0], params[0]));
+            pen[1] = params[0];
+        }
+        else if (command == 'v') {
+            std::get<0>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0], pen[1] + params[0]));
+            pen[1] += params[0];
+        }
+        else if (command == 'Q') {
+            std::get<1>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], params[1],
+                                                          params[2], params[3]));
+            pen[0] = params[2];
+            pen[1] = params[3];
+        }
+        else if (command == 'q') {
+            std::get<1>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0] + params[0], pen[1] + params[1],
+                                                          pen[0] + params[2], pen[1] + params[3]));
+            pen[0] += params[2];
+            pen[1] += params[3];
+        }
+        else if (command == 'C') {
+            std::get<2>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], params[1],
+                                                          params[2], params[3],
+                                                          params[4], params[5]));
+            pen[0] = params[4];
+            pen[1] = params[5];
+        }
+        else if (command == 'c') {
+            std::get<2>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          pen[0] + params[0], pen[1] + params[1],
+                                                          pen[0] + params[2], pen[1] + params[3],
+                                                          pen[0] + params[4], pen[1] + params[5]));
+            pen[0] += params[4];
+            pen[1] += params[5];
+        }
+        else if (command == 'A') {
+            std::get<3>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], params[1],
+                                                          params[2], params[3], params[4],
+                                                          params[5], params[6]));
+            pen[0] = params[5];
+            pen[1] = params[6];
+        }
+        else if (command == 'a') {
+            std::get<3>(bundle).push_back(std::make_tuple(pen[0], pen[1],
+                                                          params[0], params[1],
+                                                          params[2], params[3], params[4],
+                                                          pen[0] + params[5], pen[1] + params[6]));
+            pen[0] += params[5];
+            pen[1] += params[6];
+        }
+    }
 }
 

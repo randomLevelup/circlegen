@@ -23,7 +23,8 @@ typedef std::tuple<float, float, float, float, float, bool, bool, float, float> 
 typedef std::tuple<std::vector<dline>,
                    std::vector<dquad>,
                    std::vector<dcubic>,
-                   std::vector<darc>> pathbundle;
+                   std::vector<darc>,
+                   float, float> pathbundle;
 
 typedef std::tuple<float, float, float> dcircle;
 typedef std::tuple<std::vector<dcircle>, dpointlist> dbundle;
@@ -45,8 +46,9 @@ dpointlist samplePaths(pathbundle &pb, float res);
 
 /**
  * @brief render circles and points and save as "output.jpg"
- * @param bundle bundle with a vector of dcircles and a dpointlist
- * @param scaleFactor integer resolution scalar
- * @param app QApplication instance
+ * @param bundle dbundle of circles and points
+ * @param w image width
+ * @param h image height
+ * @param sf scale factor (integer)
  */
-void renderImage(const dbundle &bundle, const int scaleFactor);
+void renderImage(const dbundle &bundle, const float w, const float h, const int sf);
