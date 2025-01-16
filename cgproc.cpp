@@ -58,7 +58,7 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
     for (unsigned i = start; i < num; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        if (std::abs(dist - r) < 2.5) {
+        if (std::abs(dist - r) < 1.5) {
             std::swap(pointArray[i], pointArray[start]);
             start++;
             deleted++;

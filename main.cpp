@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
     }
 
     dpointlist points = samplePaths(pb, res);
+    // convertPointsToPercent(points);
 
     std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles);
 

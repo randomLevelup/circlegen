@@ -26,7 +26,6 @@ using namespace tinyxml2;
 #define P_PI 3.14159265358979323846
 
 void renderImage(const dbundle &bundle, const int scaleFactor);
-static void drawFill(cairo_t *cr, const dbundle &bundle, const int scaleFactor, const int padding);
 
 static dpointlist sample_circle(dcircle &circle, int num_samples);
 dpointlist samplePaths(pathbundle &pb, float res);
@@ -99,18 +98,6 @@ void renderImage(const dbundle &bundle, const int scaleFactor) {
 
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
-}
-
-static void drawFill(cairo_t *cr, const dbundle &bundle, const int scaleFactor, const int padding) {
-    // initialize overlap groups (a vector of vectors of circle-indices) where each element is a unique overlapping of circles
-
-    // iterate over all pixels in the image.
-
-    // 
-    (void)cr;
-    (void)bundle;
-    (void)scaleFactor;
-    (void)padding;
 }
 
 static dpointlist sample_circle(dcircle &circle, int num_samples) {
