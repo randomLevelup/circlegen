@@ -22,6 +22,13 @@
 #include "cgio.h"
 #include "cgfill.h"
 
+#define HUBER_LOSS_DELTA 0.06
+#define TRIM_POINT_THRESHOLD 0.03
+#define MAX_ITERATIONS 200
+#define MIN_GRAD_LENGTH 1e-10
+#define MIN_STEP_LENGTH 1e-10
+#define VERBOSITY 0
+
 static dpoint *pointListToArray(const dpointlist &pointlist);
 static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
 static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
@@ -55,13 +62,13 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
     for (unsigned i = start; i < num; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        if (std::abs(dist - r) < 0.03) {
+        if (std::abs(dist - r) < TRIM_POINT_THRESHOLD) {
             std::swap(pointArray[i], pointArray[start]);
             start++;
             deleted++;
         }
     }
-    // printf("deleted %d points\n\n", deleted);
+    printf("deleted %d points\n\n", deleted);
     return start;
 }
 
@@ -88,11 +95,11 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
-    optimizer.setMaxIterations(350);
-    optimizer.setMinGradientLength(1e-11);
-    optimizer.setMinStepLength(1e-11);
-    optimizer.setMomentum(0.9);
-    optimizer.setVerbosity(0);
+    optimizer.setMaxIterations(MAX_ITERATIONS);
+    optimizer.setMinGradientLength(MIN_GRAD_LENGTH);
+    optimizer.setMinStepLength(MIN_STEP_LENGTH);
+    optimizer.setMomentum((0.02 * num) + 0.3);
+    optimizer.setVerbosity(VERBOSITY);
 
     std::cout << "generating circles...\n";
     std::vector<dcircle> circles;
@@ -102,9 +109,9 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
 
         // optimize params
         auto result = optimizer.minimize(params);
-        // std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
-        // std::cout << "iterations: " << result.iterations << std::endl;
-        // std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
+        std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
+        std::cout << "iterations: " << result.iterations << std::endl;
+        std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
 
         // update return vector
         circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2) * sf));
@@ -130,12 +137,20 @@ double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::Vect
     cy = params(1);
     r = params(2);
 
+    const double delta = HUBER_LOSS_DELTA; // Threshold for Huber loss
+
     for (unsigned i = startIndex; i < numPoints; ++i) {
         dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
                          (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        loss = std::sqrt(std::abs(dist - r));
-        // std::cout << "loss: " << loss << std::endl;
-        loss = (loss > 0.05) ? 0.05 : loss;
+        double error = dist - r;
+
+        // Huber loss calculation
+        if (std::abs(error) <= delta) {
+            loss = 0.5 * error * error;
+        } else {
+            loss = delta * (std::abs(error) - 0.5 * delta);
+        }
+
         total_loss += loss;
     }
     total_loss /= (double)numPoints;

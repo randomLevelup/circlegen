@@ -9,6 +9,9 @@
 #include "cgfill.h"
 #include "cgrender.h"
 
+#define RES_SCALE 0.07142
+#define RES_OFFSET 0.42857
+
 int main(int argc, char *argv[]) {
     std::cout << "Starting program..." << std::endl;
 
@@ -20,8 +23,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Parsed SVG file." << std::endl;
     printf("viewbox: [%f x %f] - (%f, %f)\n", std::get<4>(pb), std::get<5>(pb), std::get<6>(pb), std::get<7>(pb));
 
-    float res = 3;
-    int numcircles = 4;
+    float res = 20;
+    int numcircles = 8;
 
     for (int i = 2; i < argc; i += 2) {
         if (std::string(argv[i]) == "--res" && i + 1 < argc) {
@@ -30,6 +33,7 @@ int main(int argc, char *argv[]) {
             res *= 10;
         } else if (std::string(argv[i]) == "--num" && i + 1 < argc) {
             numcircles = std::stoi(argv[i + 1]);
+            res *= (RES_SCALE * static_cast<float>(numcircles)) + RES_OFFSET;
             std::cout << "Number of circles set to: " << numcircles << std::endl;
         }
     }

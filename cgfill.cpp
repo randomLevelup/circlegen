@@ -92,7 +92,7 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
 
         // get median pixel (middle pixel in sorted list)
         dpixel median = pixels[pixels.size() / 2];
-        printf("group %d: %d pixels, color: %d %d %d\n", key, (int)pixels.size(), median.rgb[0], median.rgb[1], median.rgb[2]);
+        // printf("group %d: %d pixels, color: %d %d %d\n", key, (int)pixels.size(), median.rgb[0], median.rgb[1], median.rgb[2]);
 
         // set all pixels to median pixel
         for (auto &pixel : pixels) {

@@ -40,24 +40,30 @@ void renderImage(const dbundle &bundle, pathbundle &pb, dpixmap &colors) {
         }
     }
 
+    float radratio = static_cast<float>(2 * pix_width) / static_cast<float>(pix_width + pix_height);
+
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_set_line_width(cr, 2.5);
     for (const auto &circle : std::get<0>(bundle)) {
         float cx = std::get<0>(circle) * pix_width;
         float cy = std::get<1>(circle) * pix_height;
-        float r = std::get<2>(circle) * colors.scalefactor;
-        cairo_arc(cr, cx, cy, r, 0, 2 * P_PI);
+        float r = std::get<2>(circle) * colors.scalefactor * radratio;
+        cairo_save(cr);
+        cairo_translate(cr, cx, cy);
+        cairo_scale(cr, 1.0, ((float)colors.height / (float)colors.width));
+        cairo_arc(cr, 0, 0, r, 0, 2 * P_PI);
+        cairo_restore(cr);
         cairo_stroke(cr);
     }
 
-    cairo_set_source_rgb(cr, 1, 0, 0);
-    const int pointSize = 5;
-    for (const auto &point : std::get<1>(bundle)) {
-        float px = std::get<0>(point) * pix_width;
-        float py = std::get<1>(point) * pix_height;
-        cairo_arc(cr, px, py, pointSize, 0, 2 * P_PI);
-        cairo_fill(cr);
-    }
+    // cairo_set_source_rgb(cr, 1, 0, 0);
+    // const int pointSize = 5;
+    // for (const auto &point : std::get<1>(bundle)) {
+    //     float px = std::get<0>(point) * pix_width;
+    //     float py = std::get<1>(point) * pix_height;
+    //     cairo_arc(cr, px, py, pointSize, 0, 2 * P_PI);
+    //     cairo_fill(cr);
+    // }
 
     cairo_surface_write_to_png(surface, "output.png");
 
