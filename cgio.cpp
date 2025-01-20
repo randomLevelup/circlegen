@@ -196,6 +196,8 @@ pathbundle parseSVG(const char *filename) {
             ss >> minX >> minY >> width >> height;
             std::get<4>(bundle) = width;
             std::get<5>(bundle) = height;
+            std::get<6>(bundle) = minX;
+            std::get<7>(bundle) = minY;
         } else {
             std::cerr << "Error: SVG viewBox not specified" << std::endl;
             std::get<4>(bundle) = 0;

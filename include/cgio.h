@@ -25,7 +25,7 @@ typedef std::tuple<std::vector<dline>,
                    std::vector<dquad>,
                    std::vector<dcubic>,
                    std::vector<darc>,
-                   float, float> pathbundle;
+                   float, float, float, float> pathbundle;
 
 typedef std::tuple<float, float, float> dcircle;
 typedef std::tuple<std::vector<dcircle>, dpointlist> dbundle;

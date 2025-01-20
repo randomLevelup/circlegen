@@ -61,7 +61,7 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
             deleted++;
         }
     }
-    printf("deleted %d points\n\n", deleted);
+    // printf("deleted %d points\n\n", deleted);
     return start;
 }
 
@@ -94,7 +94,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     optimizer.setMomentum(0.9);
     optimizer.setVerbosity(0);
 
-    std::cout << "generating circles\n";
+    std::cout << "generating circles...\n";
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
@@ -102,9 +102,9 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
 
         // optimize params
         auto result = optimizer.minimize(params);
-        std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
-        std::cout << "iterations: " << result.iterations << std::endl;
-        std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
+        // std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
+        // std::cout << "iterations: " << result.iterations << std::endl;
+        // std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
 
         // update return vector
         circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2) * sf));
@@ -116,6 +116,8 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
         circles,
         pointArrayToList(pointArray, opt.numPoints, opt.startIndex)
     );
+
+    std::cout << "...circle generation done\n";
     delete[] pointArray;
     return result;
 }

@@ -28,10 +28,10 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
             int index = y * pm.stride + x * 4; // Assuming 4 bytes per pixel (e.g., RGBA)
-            uint8_t r = pm.data[index + 2]; // Red is at index + 2
-            uint8_t g = pm.data[index + 1]; // Green is at index + 1
-            uint8_t b = pm.data[index];     // Blue is at index
-            uint8_t a = pm.data[index + 3]; // Alpha is at index + 3
+            uint8_t r = pm.data[index + 2];
+            uint8_t g = pm.data[index + 1];
+            uint8_t b = pm.data[index];
+            uint8_t a = pm.data[index + 3];
 
             // crush alpha (if alpha is < 128, set it to 1 and make the pixel white)
             if (a <= 128) {
@@ -43,11 +43,11 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
             // A pixel's hash key is a n bit number with each bit representing containment in a circle. 
             uint32_t key = 0;
             for (int i = 0; i < circles.size(); ++i) {
-                float px = static_cast<float>(x);
-                float py = static_cast<float>(y);
-                float cx = std::get<0>(circles[i]) * c_sf;
-                float cy = std::get<1>(circles[i]) * c_sf;
-                float r = std::get<2>(circles[i]);
+                float px = static_cast<float>(x) / static_cast<float>(pm.width);
+                float py = static_cast<float>(y) / static_cast<float>(pm.height);
+                float cx = std::get<0>(circles[i]);
+                float cy = std::get<1>(circles[i]);
+                float r = std::get<2>(circles[i]) / c_sf;
                 float dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
                 if (dist < r) {
                     key |= 1 << i;
@@ -62,9 +62,6 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
             ogroup.table[key].push_back(pixel);
         }
     }
-
-    // print out ogroup sizes
-    std::cout << "number of ogroups: " << ogroup.keys.size() << std::endl;
 
     for (auto &key : ogroup.keys) {
         std::vector<dpixel> &pixels = ogroup.table[key];
@@ -95,14 +92,13 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
 
         // get median pixel (middle pixel in sorted list)
         dpixel median = pixels[pixels.size() / 2];
-        // printf("group %d: %d pixels, color: %d %d %d\n", key, (int)pixels.size(), median.rgb[0], median.rgb[1], median.rgb[2]);
+        printf("group %d: %d pixels, color: %d %d %d\n", key, (int)pixels.size(), median.rgb[0], median.rgb[1], median.rgb[2]);
 
         // set all pixels to median pixel
         for (auto &pixel : pixels) {
             pixel.rgb[0] = median.rgb[0];
             pixel.rgb[1] = median.rgb[1];
             pixel.rgb[2] = median.rgb[2];
-            // continue;
         }
     }
 
@@ -110,10 +106,10 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
     dpixmap res = {new uint8_t[pm.stride * pm.height], pm.width, pm.height, pm.stride};
     for (auto &key : ogroup.keys) {
         for (auto &pixel : ogroup.table[key]) {
-            res.data[pixel.idx] = pixel.rgb[2];     // Blue is at index
-            res.data[pixel.idx + 1] = pixel.rgb[1]; // Green is at index + 1
-            res.data[pixel.idx + 2] = pixel.rgb[0]; // Red is at index + 2
-            res.data[pixel.idx + 3] = 255;          // Alpha is at index + 3
+            res.data[pixel.idx] = pixel.rgb[2];
+            res.data[pixel.idx + 1] = pixel.rgb[1];
+            res.data[pixel.idx + 2] = pixel.rgb[0];
+            res.data[pixel.idx + 3] = 255;
         }
     }
     res.width = pm.width;
@@ -159,7 +155,7 @@ dpixmap getSVGColorMap(const char *filename) {
         return res;
     }
 
-    // cairo_scale(cr, scaleFactor, scaleFactor);
+    cairo_scale(cr, scaleFactor, scaleFactor);
 
     RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};
     if (!rsvg_handle_render_document(handle, cr, &viewport, &error)) {
@@ -171,6 +167,7 @@ dpixmap getSVGColorMap(const char *filename) {
         return res;
     }
 
+    cairo_surface_flush(surface);
     int stride = cairo_image_surface_get_stride(surface);
     int dataSize = stride * scaledHeight;
     uint8_t *surface_data = cairo_image_surface_get_data(surface);

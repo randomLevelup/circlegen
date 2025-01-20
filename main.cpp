@@ -18,6 +18,7 @@ int main(int argc, char *argv[]) {
 
     pathbundle pb = parseSVG(filename);
     std::cout << "Parsed SVG file." << std::endl;
+    printf("viewbox: [%f x %f] - (%f, %f)\n", std::get<4>(pb), std::get<5>(pb), std::get<6>(pb), std::get<7>(pb));
 
     float res = 3;
     int numcircles = 4;
@@ -38,22 +39,23 @@ int main(int argc, char *argv[]) {
 
     const float width = std::get<4>(pb);
     const float height = std::get<5>(pb);
-    const float scaleFactor = (width + height) / 2.0;
-    std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, scaleFactor);
+    const float circles_scalefactor = (width + height) / 2.0;
+    std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, circles_scalefactor);
     std::cout << "# Points remaining: " << std::get<1>(result).size() << std::endl;
 
     dpixmap pm = getSVGColorMap(filename);
     std::cout << "Got color map." << std::endl;
 
     std::vector<dcircle> res_circles = std::get<0>(result);
-    dpixmap qpm = quantizeColors(pm, res_circles, scaleFactor);
+    dpixmap qpm = quantizeColors(pm, res_circles, circles_scalefactor);
     std::cout << "Quantized color map." << std::endl;
 
-    const int scale = qpm.scalefactor;
-    renderImage(result, qpm, width, height, scale);
+    renderImage(result, pb, qpm);
 
-    free(pm.data);
-    free(qpm.data);
+    // free pm and qpm if not null
+    if (pm.data != nullptr) { delete[]pm.data; pm.data = nullptr; }
+    if (qpm.data != nullptr) { delete[]qpm.data; qpm.data = nullptr;}
+
     std::cout << "Program finished." << std::endl;
     return 0;
 }
