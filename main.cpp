@@ -7,6 +7,7 @@
 #include "cgio.h"
 #include "cgproc.h"
 #include "cgfill.h"
+#include "cgrender.h"
 
 int main(int argc, char *argv[]) {
     std::cout << "Starting program..." << std::endl;

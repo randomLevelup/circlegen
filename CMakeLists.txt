@@ -24,7 +24,7 @@ set(EXCLUDE_DIRS "include/dummy")
 
 link_directories(./lib /usr/lib)
 
-add_executable(circlegen cgio.cpp cgproc.cpp cgfill.cpp main.cpp)
+add_executable(circlegen cgio.cpp cgproc.cpp cgfill.cpp cgrender.cpp main.cpp)
 
 target_compile_options(circlegen PRIVATE -O2)
 set_source_files_properties(cgfill.cpp PROPERTIES COMPILE_FLAGS -Wno-deprecated-declarations)
