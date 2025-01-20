@@ -13,18 +13,18 @@
 #include <cstring>
 #include <cassert>
 
-dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles);
+dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c_sf);
 dpixmap getSVGColorMap(const char *filename);
 
-dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
+dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c_sf) {
     if (circles.size() >= 32) {
         std::cerr << "Error: The number of circles (" << circles.size() << ") exceeds the maximum allowed (31)." << std::endl;
         assert(circles.size() < 32);
     }
     overlapgroup ogroup = {std::unordered_map<uint32_t, std::vector<dpixel>>(), std::vector<uint32_t>()};
-    float scalefactor = (pm.width + pm.height) / 2.0;
-    std::cout << "Scale factor: " << scalefactor << std::endl;
+    std::cout << "computing fill with circle scale factor: " << c_sf << std::endl;
 
+    std::cout << "pm width: " << pm.width << ", height: " << pm.height << ", stride: " << pm.stride << std::endl;
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
             int index = y * pm.stride + x * 4; // Assuming 4 bytes per pixel (e.g., RGBA)
@@ -45,8 +45,8 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
             for (int i = 0; i < circles.size(); ++i) {
                 float px = static_cast<float>(x);
                 float py = static_cast<float>(y);
-                float cx = std::get<0>(circles[i]) * scalefactor;
-                float cy = std::get<1>(circles[i]) * scalefactor;
+                float cx = std::get<0>(circles[i]) * c_sf;
+                float cy = std::get<1>(circles[i]) * c_sf;
                 float r = std::get<2>(circles[i]);
                 float dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
                 if (dist < r) {
@@ -62,6 +62,9 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
             ogroup.table[key].push_back(pixel);
         }
     }
+
+    // print out ogroup sizes
+    std::cout << "number of ogroups: " << ogroup.keys.size() << std::endl;
 
     for (auto &key : ogroup.keys) {
         std::vector<dpixel> &pixels = ogroup.table[key];
@@ -92,6 +95,7 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
 
         // get median pixel (middle pixel in sorted list)
         dpixel median = pixels[pixels.size() / 2];
+        // printf("group %d: %d pixels, color: %d %d %d\n", key, (int)pixels.size(), median.rgb[0], median.rgb[1], median.rgb[2]);
 
         // set all pixels to median pixel
         for (auto &pixel : pixels) {
@@ -115,6 +119,7 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
     res.width = pm.width;
     res.height = pm.height;
     res.stride = pm.stride;
+    res.scalefactor = pm.scalefactor;
     return res;
 }
 
@@ -132,7 +137,14 @@ dpixmap getSVGColorMap(const char *filename) {
     RsvgDimensionData dimensions;
     rsvg_handle_get_dimensions(handle, &dimensions);
 
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, dimensions.width, dimensions.height);
+    // scale factor is the multiplicand to make the larger dimension at least 2000
+    int scaleFactor = (int)ceil(2000.0 / std::max(dimensions.width, dimensions.height));
+    std::cout << "Colormap ScaleFactor: " << scaleFactor << std::endl;
+
+    int scaledWidth = dimensions.width * scaleFactor;
+    int scaledHeight = dimensions.height * scaleFactor;
+
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, scaledWidth, scaledHeight);
     if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
         std::cerr << "Error: Unable to create cairo surface" << std::endl;
         g_object_unref(handle);
@@ -147,6 +159,8 @@ dpixmap getSVGColorMap(const char *filename) {
         return res;
     }
 
+    // cairo_scale(cr, scaleFactor, scaleFactor);
+
     RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};
     if (!rsvg_handle_render_document(handle, cr, &viewport, &error)) {
         std::cerr << "Error: Unable to render SVG document: " << error->message << std::endl;
@@ -158,13 +172,14 @@ dpixmap getSVGColorMap(const char *filename) {
     }
 
     int stride = cairo_image_surface_get_stride(surface);
-    int dataSize = stride * dimensions.height;
+    int dataSize = stride * scaledHeight;
     uint8_t *surface_data = cairo_image_surface_get_data(surface);
     res.data = new uint8_t[dataSize];
     std::memcpy(res.data, surface_data, dataSize);
     res.stride = stride;
-    res.width = dimensions.width;
-    res.height = dimensions.height;
+    res.width = scaledWidth;
+    res.height = scaledHeight;
+    res.scalefactor = scaleFactor;
 
     cairo_surface_mark_dirty(surface);
     cairo_destroy(cr);

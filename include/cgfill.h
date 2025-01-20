@@ -22,6 +22,7 @@ struct dpixmap_ {
     int width;
     int height;
     int stride;
+    int scalefactor;
 }; typedef struct dpixmap_ dpixmap;
 
 struct dpixel_ {
@@ -36,7 +37,7 @@ struct overlapgroup_ {
 }; typedef struct overlapgroup_ overlapgroup;
 
 
-dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles);
+dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c_sf);
 
 
 /**

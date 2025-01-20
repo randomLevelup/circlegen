@@ -45,11 +45,10 @@ int main(int argc, char *argv[]) {
     std::cout << "Got color map." << std::endl;
 
     std::vector<dcircle> res_circles = std::get<0>(result);
-    dpixmap qpm = quantizeColors(pm, res_circles);
+    dpixmap qpm = quantizeColors(pm, res_circles, scaleFactor);
     std::cout << "Quantized color map." << std::endl;
 
-    const int scale = 10;
-    std::cout << "Rendering image with width: " << width << ", height: " << height << ", scale factor: " << scale << std::endl;
+    const int scale = qpm.scalefactor;
     renderImage(result, qpm, width, height, scale);
 
     free(pm.data);
