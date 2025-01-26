@@ -22,18 +22,17 @@
 #include "cgio.h"
 #include "cgfill.h"
 
-#define HUBER_LOSS_DELTA 0.06
-#define TRIM_POINT_THRESHOLD 0.03
-#define MAX_ITERATIONS 200
+#define HUBER_LOSS_DELTA 0.055
+#define TRIM_POINT_THRESHOLD 0.06
+#define MAX_ITERATIONS 80
 #define MIN_GRAD_LENGTH 1e-10
-#define MIN_STEP_LENGTH 1e-10
-#define VERBOSITY 0
+#define MIN_STEP_LENGTH 3e-15
 
 static dpoint *pointListToArray(const dpointlist &pointlist);
 static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
 static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
 static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf, int verbosity);
 
 static dpoint *pointListToArray(const dpointlist &pointlist) {
     dpoint *pointarray = new dpoint[pointlist.size()];
@@ -68,7 +67,7 @@ static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start,
             deleted++;
         }
     }
-    printf("deleted %d points\n\n", deleted);
+    // printf("deleted %d points\n\n", deleted);
     return start;
 }
 
@@ -89,29 +88,34 @@ static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsig
     return params;
 }
 
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf) {
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf, int verbosity) {
     std::cout << "creating optimizer\n";
     dpoint *pointArray = pointListToArray(pointlist);
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
     optimizer.setObjective(opt);
     optimizer.setMaxIterations(MAX_ITERATIONS);
-    optimizer.setMinGradientLength(MIN_GRAD_LENGTH);
+    // optimizer.setMinGradientLength(MIN_GRAD_LENGTH);
     optimizer.setMinStepLength(MIN_STEP_LENGTH);
-    optimizer.setMomentum((0.02 * num) + 0.3);
-    optimizer.setVerbosity(VERBOSITY);
+    // optimizer.setMomentum((0.02 * num) + 0.3);
+    // optimizer.setMomentum(0.8);
+    optimizer.setVerbosity((verbosity < 3) ? 0 : 1);
 
     std::cout << "generating circles...\n";
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
-        // circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
+        if (verbosity >= 3) {
+            circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
+        }
 
         // optimize params
         auto result = optimizer.minimize(params);
-        std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
-        std::cout << "iterations: " << result.iterations << std::endl;
-        std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
+        if (verbosity >= 2) {
+            std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
+            std::cout << "iterations: " << result.iterations << std::endl;
+            std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
+        }
 
         // update return vector
         circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2) * sf));

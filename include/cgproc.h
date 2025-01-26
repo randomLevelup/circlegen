@@ -40,8 +40,10 @@ struct CircleOptimization {
  * @brief generate and optimize circles
  * @param points point list to fit circles to
  * @param num number of circles
+ * @param sf scale factor for circles
+ * @param verbosity level of verbosity for optimizer
  * @return vector of n circles
  */
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num, float sf);
+std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &points, int num, float sf, int verbosity);
 
 #endif

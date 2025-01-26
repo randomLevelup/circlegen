@@ -25,7 +25,7 @@ void renderImage(const dbundle &bundle, pathbundle &pb, dpixmap &colors) {
     cairo_paint(cr);
 
     int sf = colors.scalefactor;
-    printf("qpm width: %d, height: %d, stride: %d\n", pix_width, pix_height, colors.stride);
+    std::cout << "qpm width: " << pix_width << ", height: " << pix_height << ", stride: " << colors.stride << std::endl;
     for (int y = 0; y < pix_height; ++y) {
         for (int x = 0; x < pix_width; ++x) {
             int index = y * colors.stride + x * 4;
