@@ -22,9 +22,9 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
         assert(circles.size() < 32);
     }
     overlapgroup ogroup = {std::unordered_map<uint32_t, std::vector<dpixel>>(), std::vector<uint32_t>()};
-    std::cout << "computing fill with circle scale factor: " << c_sf << std::endl;
+    std::cout << "Computing fill with circle scale factor: " << c_sf << std::endl;
 
-    std::cout << "pm width: " << pm.width << ", height: " << pm.height << ", stride: " << pm.stride << std::endl;
+    std::cout << "PM width: " << pm.width << ", height: " << pm.height << ", stride: " << pm.stride << std::endl;
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
             int index = y * pm.stride + x * 4; // Assuming 4 bytes per pixel (e.g., RGBA)

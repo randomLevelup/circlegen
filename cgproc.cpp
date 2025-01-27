@@ -89,7 +89,7 @@ static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsig
 }
 
 std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf, int verbosity) {
-    std::cout << "creating optimizer\n";
+    std::cout << "Creating optimizer\n";
     dpoint *pointArray = pointListToArray(pointlist);
     CircleOptimization opt(pointArray, pointlist.size());
     gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
@@ -101,7 +101,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
     // optimizer.setMomentum(0.8);
     optimizer.setVerbosity((verbosity < 3) ? 0 : 1);
 
-    std::cout << "generating circles...\n";
+    std::cout << "Generating circles...\n";
     std::vector<dcircle> circles;
     while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
         Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
@@ -112,9 +112,9 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
         // optimize params
         auto result = optimizer.minimize(params);
         if (verbosity >= 2) {
-            std::cout << "converged: " << (result.converged ? "true" : "false") << std::endl;
-            std::cout << "iterations: " << result.iterations << std::endl;
-            std::cout << "\nnew circle with fval [" << result.fval << "]\n\n";
+            std::cout << "Converged: " << (result.converged ? "True" : "False") << std::endl;
+            std::cout << "Iterations: " << result.iterations << std::endl;
+            std::cout << "\nNew circle with final loss [" << result.fval << "]\n\n";
         }
 
         // update return vector
@@ -128,7 +128,7 @@ std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointli
         pointArrayToList(pointArray, opt.numPoints, opt.startIndex)
     );
 
-    std::cout << "...circle generation done\n";
+    std::cout << "...Circle generation done\n";
     delete[] pointArray;
     return result;
 }

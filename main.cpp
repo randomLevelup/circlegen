@@ -19,6 +19,10 @@ int main(int argc, char *argv[]) {
     float res = 20;
     int numcircles = 8;
     int verbosity = 1;
+    bool rpoints = false;
+    bool rcircles = true;
+    bool rfill = true;
+    bool nogen = false;
 
     for (int i = 2; i < argc; i += 2) {
         if (std::string(argv[i]) == "--res" && i + 1 < argc) {
@@ -32,21 +36,28 @@ int main(int argc, char *argv[]) {
             if (verbosity <= 0) {
                 std::cout.setstate(std::ios_base::failbit);
             }
-
+        } else if (std::string(argv[i]) == "--rpoints" && i + 1 < argc) {
+            rpoints = (std::string(argv[i + 1]) == "true");
+        } else if (std::string(argv[i]) == "--rcircles" && i + 1 < argc) {
+            rcircles = (std::string(argv[i + 1]) == "true");
+        } else if (std::string(argv[i]) == "--rfill" && i + 1 < argc) {
+            rfill = (std::string(argv[i + 1]) == "true");
+        } else if (std::string(argv[i]) == "--nogen") {
+            nogen = true;
+            i -= 1; // adjust to not skip next argument
         }
     }
+    std::cout << "Starting program..." << std::endl;
     std::cout << "Resolution set to: " << res << std::endl;
     std::cout << "Number of circles set to: " << numcircles << std::endl;
     std::cout << "Verbosity set to: " << verbosity << std::endl;
-
-    std::cout << "Starting program..." << std::endl;
 
     const char *filename = argv[1];
     std::cout << "Filename: " << filename << std::endl;
 
     pathbundle pb = parseSVG(filename);
-    std::cout << "Parsed SVG file." << std::endl;
-    std::cout << "viewbox: [" << std::get<4>(pb) << " x " << std::get<5>(pb) << "] - (" << std::get<6>(pb) << ", " << std::get<7>(pb) << ")" << std::endl;
+    std::cout << "Parsed SVG file: "
+              << "viewbox: [" << std::get<4>(pb) << " x " << std::get<5>(pb) << "] - (" << std::get<6>(pb) << ", " << std::get<7>(pb) << ")" << std::endl;
 
 
     dpointlist points = samplePaths(pb, res);
@@ -55,7 +66,14 @@ int main(int argc, char *argv[]) {
     const float width = std::get<4>(pb);
     const float height = std::get<5>(pb);
     const float circles_scalefactor = (width + height) / 2.0;
-    std::tuple<std::vector<dcircle>, dpointlist> result = generateCircles(points, numcircles, circles_scalefactor, verbosity);
+    std::tuple<std::vector<dcircle>, dpointlist> result;
+
+    if (!nogen) {
+        result = generateCircles(points, numcircles, circles_scalefactor, verbosity);
+    } else {
+        std::vector<dcircle> dummy;
+        result = std::make_tuple(dummy, points);
+    }
     std::cout << "# Points remaining: " << std::get<1>(result).size() << std::endl;
 
     dpixmap pm = getSVGColorMap(filename);
@@ -65,7 +83,7 @@ int main(int argc, char *argv[]) {
     dpixmap qpm = quantizeColors(pm, res_circles, circles_scalefactor);
     std::cout << "Quantized color map." << std::endl;
 
-    renderImage(result, pb, qpm);
+    renderImage(result, pb, qpm, rpoints, rcircles, rfill);
 
     // free pm and qpm if not null
     if (pm.data != nullptr) { delete[]pm.data; pm.data = nullptr; }
