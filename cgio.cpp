@@ -32,6 +32,7 @@ static dpointlist sample_cubic(dcubic &cubic, float res, std::mt19937 gen);
 static dpointlist sample_arc(darc &arc, float res, std::mt19937 gen);
 
 pathbundle parseSVG(const char *filename);
+static void parseSVGElement(XMLElement *element, pathbundle &bundle);
 static void parsePath(const char *d, pathbundle &bundle);
 static void parsePolygon(const char *p, pathbundle &bundle);
 
@@ -213,22 +214,74 @@ pathbundle parseSVG(const char *filename) {
             }
         }
 
-        for (XMLElement *el = svg->FirstChildElement(); el; el = el->NextSiblingElement()) {
-            std::string type = el->Name();
-            if (type == "path") {
-                const char *data = el->Attribute("d");
-                parsePath(data, bundle);
-            }
-            else if (type == "polygon") {
-                const char *points = el->Attribute("points");
-                parsePolygon(points, bundle);
+        auto gtag = svg->FirstChildElement("g");
+        if (gtag) {
+            const char *transform = gtag->Attribute("transform");
+            if (transform) {
+                std::string tstr(transform);
+                std::cout << "Transform: " << tstr << std::endl;
+                
+                // Check for scale
+                std::string::size_type scaleStart = tstr.find("scale(");
+                if (scaleStart != std::string::npos) {
+                    scaleStart += 6;
+                    std::string::size_type scaleEnd = tstr.find(")", scaleStart);
+                    if (scaleEnd != std::string::npos) {
+                        std::string scale = tstr.substr(scaleStart, scaleEnd - scaleStart);
+                        float scalefactor = std::stof(scale);
+                        std::get<4>(bundle) *= scalefactor;
+                        std::get<5>(bundle) *= scalefactor;
+                    }
+                }
+
+                // Check for translate
+                std::string::size_type translateStart = tstr.find("translate(");
+                if (translateStart != std::string::npos) {
+                    translateStart += 10;
+                    std::string::size_type translateEnd = tstr.find(")", translateStart);
+                    if (translateEnd != std::string::npos) {
+                        std::string translate = tstr.substr(translateStart, translateEnd - translateStart);
+                        std::stringstream ss(translate);
+                        float tx, ty;
+                        char comma;
+                        if (ss >> tx >> comma >> ty) {
+                            std::get<6>(bundle) += tx;
+                            std::get<7>(bundle) += ty;
+                        }
+                    }
+                }
             }
         }
+
+        parseSVGElement(svg->FirstChildElement(), bundle);
     } else {
         std::cerr << "Error: could not read svg element in " << filename << std::endl;
     }
 
     return bundle;
+}
+
+static void parseSVGElement(XMLElement *element, pathbundle &bundle) {
+    if (!element) return;
+
+    std::string type = element->Name();
+    if (type == "path") {
+        const char *data = element->Attribute("d");
+        if (data) {
+            parsePath(data, bundle);
+        }
+    }
+    else if (type == "polygon") {
+        const char *points = element->Attribute("points");
+        if (points) {
+            parsePolygon(points, bundle);
+        }
+    }
+
+    // Recurse on any child elements
+    parseSVGElement(element->FirstChildElement(), bundle);
+    // Recurse on next sibling
+    parseSVGElement(element->NextSiblingElement(), bundle);
 }
 
 static void parsePath(const char *d, pathbundle &bundle) {

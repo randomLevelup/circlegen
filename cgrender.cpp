@@ -22,6 +22,11 @@ void renderImage(const dbundle &bundle, pathbundle &pb, dpixmap &colors,
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pix_width, pix_height);
     cairo_t *cr = cairo_create(surface);
 
+    // Apply translation from pathbundle
+    float translateX = std::get<6>(pb);
+    float translateY = std::get<7>(pb);
+    cairo_translate(cr, -translateX, translateY);
+
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_paint(cr);
 
