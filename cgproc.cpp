@@ -23,10 +23,10 @@
 #include "cgfill.h"
 
 #define HUBER_LOSS_DELTA 0.055
-#define TRIM_POINT_THRESHOLD 0.06
-#define MAX_ITERATIONS 80
+#define TRIM_POINT_THRESHOLD 0.04
+#define MAX_ITERATIONS 100
 #define MIN_GRAD_LENGTH 1e-10
-#define MIN_STEP_LENGTH 3e-15
+#define MIN_STEP_LENGTH 1e-12
 
 static dpoint *pointListToArray(const dpointlist &pointlist);
 static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);

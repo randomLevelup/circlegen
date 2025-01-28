@@ -219,7 +219,6 @@ pathbundle parseSVG(const char *filename) {
             const char *transform = gtag->Attribute("transform");
             if (transform) {
                 std::string tstr(transform);
-                std::cout << "Transform: " << tstr << std::endl;
                 
                 // Check for scale
                 std::string::size_type scaleStart = tstr.find("scale(");

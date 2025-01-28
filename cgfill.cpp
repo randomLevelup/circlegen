@@ -14,7 +14,7 @@
 #include <cassert>
 
 dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c_sf);
-dpixmap getSVGColorMap(const char *filename);
+dpixmap getSVGColorMap(const char *filename, float minX, float minY);
 
 dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c_sf) {
     if (circles.size() >= 32) {
@@ -119,7 +119,7 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
     return res;
 }
 
-dpixmap getSVGColorMap(const char *filename) {
+dpixmap getSVGColorMap(const char *filename, float minX, float minY) {
     dpixmap res = {nullptr, 0, 0, 0};
 
     GError *error = NULL;
@@ -155,6 +155,7 @@ dpixmap getSVGColorMap(const char *filename) {
         return res;
     }
 
+    cairo_translate(cr, -minX, -minY);
     cairo_scale(cr, scaleFactor, scaleFactor);
 
     RsvgRectangle viewport = {0, 0, static_cast<double>(dimensions.width), static_cast<double>(dimensions.height)};

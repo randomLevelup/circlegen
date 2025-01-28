@@ -45,6 +45,6 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, float c
  * @param filename input svg
  * @return dpixmap 
  */
-dpixmap getSVGColorMap(const char *filename);
+dpixmap getSVGColorMap(const char *filename, float minX, float minY);
 
 #endif

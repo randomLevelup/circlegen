@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Verbosity set to: " << verbosity << std::endl;
 
     const char *filename = argv[1];
-    std::cout << "Filename: " << filename << std::endl;
+    std::cout << "File path: " << filename << std::endl;
 
     pathbundle pb = parseSVG(filename);
     std::cout << "Parsed SVG file: "
@@ -65,6 +65,8 @@ int main(int argc, char *argv[]) {
 
     const float width = std::get<4>(pb);
     const float height = std::get<5>(pb);
+    const float minX = std::get<6>(pb);
+    const float minY = std::get<7>(pb);
     const float circles_scalefactor = (width + height) / 2.0;
     std::tuple<std::vector<dcircle>, dpointlist> result;
 
@@ -76,7 +78,7 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "# Points remaining: " << std::get<1>(result).size() << std::endl;
 
-    dpixmap pm = getSVGColorMap(filename);
+    dpixmap pm = getSVGColorMap(filename, minX, minY);
     std::cout << "Got color map." << std::endl;
 
     std::vector<dcircle> res_circles = std::get<0>(result);
