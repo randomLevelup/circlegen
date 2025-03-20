@@ -5,7 +5,7 @@
  * @brief circlegen rendering function header
  */
 
-#include "cgio.h"
+#include "cgiosvg.h"
 #include "cgfill.h"
 
 #ifndef CGRENDER_H

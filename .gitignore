@@ -3,6 +3,8 @@
 /include/eigen3/
 /include/cairo/
 /include/librsvg/
+/include/libpng/
+/include/libjpeg/
 /include/glib2/
 /include/dummy/
 /build/*

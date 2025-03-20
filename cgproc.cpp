@@ -1,162 +1,86 @@
 /**
  * @file cgproc.cpp
  * @author Jupiter Westbard
- * @date 12/19/2024
+ * @date 03/20/2025
  * @brief circlegen processing implementations
  */
 
-#include <iostream>
-#include <string>
-#include <sstream>
 #include <vector>
-#include <random>
 #include <tuple>
-#include <limits>
-#include <cassert>
+#include <cmath>
+#include <random>
 #include <algorithm>
 
-#include <Eigen/Core>
-#include "gdcpp.h"
-
-#include "cgproc.h"
 #include "cgio.h"
-#include "cgfill.h"
+#include "cgproc.h"
 
-#define HUBER_LOSS_DELTA 0.055
-#define TRIM_POINT_THRESHOLD 0.04
-#define MAX_ITERATIONS 100
-#define MIN_GRAD_LENGTH 1e-10
-#define MIN_STEP_LENGTH 1e-12
+dpixmap sobelFilter(dpixmap pm) {
+    dpixmap filtered = {pm.width, pm.height, new dpixel[pm.width * pm.height]};
+    int width = pm.width;
+    int height = pm.height;
 
-static dpoint *pointListToArray(const dpointlist &pointlist);
-static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start);
-static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle);
-static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex);
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf, int verbosity);
+    // Sobel kernels
+    int Gx[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}
+    };
+    int Gy[3][3] = {
+        {1, 2, 1},
+        {0, 0, 0},
+        {-1, -2, -1}
+    };
 
-static dpoint *pointListToArray(const dpointlist &pointlist) {
-    dpoint *pointarray = new dpoint[pointlist.size()];
-    for (unsigned i = 0; i < pointlist.size(); ++i) {
-        pointarray[i].x = std::get<0>(pointlist[i]);
-        pointarray[i].y = std::get<1>(pointlist[i]);
-    }
-    return pointarray;
-}
+    for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+            int sumX = 0;
+            int sumY = 0;
 
-static dpointlist pointArrayToList(const dpoint *pointArray, unsigned num, unsigned start) {
-    dpointlist pointlist;
-    for (unsigned i = start; i < num; ++i) {
-        pointlist.push_back(std::make_tuple(pointArray[i].x, pointArray[i].y));
-    }
-    return pointlist;
-}
+            for (int ky = -1; ky <= 1; ++ky) {
+                for (int kx = -1; kx <= 1; ++kx) {
+                    int pixelValue = pm.data[(y + ky) * width + (x + kx)].R;
+                    sumX += pixelValue * Gx[ky + 1][kx + 1];
+                    sumY += pixelValue * Gy[ky + 1][kx + 1];
+                }
+            }
 
-static unsigned trimPointArray(dpoint *pointArray, unsigned num, unsigned start, const Eigen::VectorXd &circle) {
-    double cx, cy, r, dist;
-    cx = circle(0);
-    cy = circle(1);
-    r = circle(2);
+            int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
+            if (magnitude > 255) magnitude = 255;
 
-    int deleted = 0;
-    for (unsigned i = start; i < num; ++i) {
-        dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
-                         (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        if (std::abs(dist - r) < TRIM_POINT_THRESHOLD) {
-            std::swap(pointArray[i], pointArray[start]);
-            start++;
-            deleted++;
+            filtered.data[y * width + x].R = magnitude;
+            filtered.data[y * width + x].G = magnitude;
+            filtered.data[y * width + x].B = magnitude;
         }
     }
-    // printf("deleted %d points\n\n", deleted);
-    return start;
+
+    return filtered;
 }
 
-static Eigen::VectorXd spawnCircle(dpoint *pointArray, unsigned numPoints, unsigned startIndex) {
-    assert(startIndex < numPoints);
+static double mag_factor(dpixel pixel) {
+    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
+    return (255.0 - mag) / 255.0;
+}
+
+dpointlist samplePoints(dpixmap pm, int num, double threshold) {
+    dpointlist points;
+
+    for (int i = 0; i < (pm.width * pm.height); ++i) {
+        double mag = mag_factor(pm.data[i]);
+        if (mag < threshold) {
+            int x = i % pm.width;
+            int y = i / pm.width;
+            points.push_back(std::make_tuple(x, y));
+        }
+    }
+
+    // shuffle the points
     std::random_device rd;
-    std::mt19937 gen(rd());
-    // pick 2 random points from pointArray between startIndex and numPoints
-    std::uniform_int_distribution<int> dis(startIndex, numPoints - 1);
-    dpoint p1 = pointArray[dis(gen)];
-    dpoint p2 = pointArray[dis(gen)];
+    std::mt19937 g(rd());
+    std::shuffle(points.begin(), points.end(), g);
 
-    Eigen::VectorXd params(3);
-    params(0) = p1.x;
-    params(1) = p1.y;
-    params(2) = std::sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y));
-
-    return params;
-}
-
-std::tuple<std::vector<dcircle>, dpointlist> generateCircles(dpointlist &pointlist, int num, float sf, int verbosity) {
-    std::cout << "Creating optimizer\n";
-    dpoint *pointArray = pointListToArray(pointlist);
-    CircleOptimization opt(pointArray, pointlist.size());
-    gdc::GradientDescent<double, CircleOptimization, gdc::WolfeBacktracking<double>> optimizer;
-    optimizer.setObjective(opt);
-    optimizer.setMaxIterations(MAX_ITERATIONS);
-    // optimizer.setMinGradientLength(MIN_GRAD_LENGTH);
-    optimizer.setMinStepLength(MIN_STEP_LENGTH);
-    // optimizer.setMomentum((0.02 * num) + 0.3);
-    // optimizer.setMomentum(0.8);
-    optimizer.setVerbosity((verbosity < 3) ? 0 : 1);
-
-    std::cout << "Generating circles...\n";
-    std::vector<dcircle> circles;
-    while (opt.startIndex < opt.numPoints && circles.size() < (unsigned)num) {
-        Eigen::VectorXd params = spawnCircle(pointArray, opt.numPoints, opt.startIndex);
-        if (verbosity >= 3) {
-            circles.push_back(std::make_tuple(params(0), params(1), params(2) * sf));
-        }
-
-        // optimize params
-        auto result = optimizer.minimize(params);
-        if (verbosity >= 2) {
-            std::cout << "Converged: " << (result.converged ? "True" : "False") << std::endl;
-            std::cout << "Iterations: " << result.iterations << std::endl;
-            std::cout << "\nNew circle with final loss [" << result.fval << "]\n\n";
-        }
-
-        // update return vector
-        circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2) * sf));
-
-        // update pointArray
-        opt.startIndex = trimPointArray(pointArray, opt.numPoints, opt.startIndex, result.xval);
+    // pick up to num points
+    if (points.size() > num) {
+        points.resize(num);
     }
-    std::tuple<std::vector<dcircle>, dpointlist> result = std::make_tuple(
-        circles,
-        pointArrayToList(pointArray, opt.numPoints, opt.startIndex)
-    );
-
-    std::cout << "...Circle generation done\n";
-    delete[] pointArray;
-    return result;
-}
-
-double CircleOptimization::operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
-    double total_loss = 0.0;
-
-    double cx, cy, r, dist, loss;
-    cx = params(0);
-    cy = params(1);
-    r = params(2);
-
-    const double delta = HUBER_LOSS_DELTA; // Threshold for Huber loss
-
-    for (unsigned i = startIndex; i < numPoints; ++i) {
-        dist = std::sqrt((pointArray[i].x - cx) * (pointArray[i].x - cx) +
-                         (pointArray[i].y - cy) * (pointArray[i].y - cy));
-        double error = dist - r;
-
-        // Huber loss calculation
-        if (std::abs(error) <= delta) {
-            loss = 0.5 * error * error;
-        } else {
-            loss = delta * (std::abs(error) - 0.5 * delta);
-        }
-
-        total_loss += loss;
-    }
-    total_loss /= (double)numPoints;
-    return total_loss;
+    return points;
 }

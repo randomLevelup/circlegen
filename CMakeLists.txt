@@ -16,7 +16,6 @@ include_directories(
     /usr/include/eigen3 
     ${GLIB_INCLUDE_DIRS} 
     ${CAIRO_INCLUDE_DIRS} 
-    ${RSVG_INCLUDE_DIRS}
 )
 
 # Exclude the include/dummy/ directory
@@ -24,14 +23,15 @@ set(EXCLUDE_DIRS "include/dummy")
 
 link_directories(./lib /usr/lib)
 
-add_executable(circlegen cgio.cpp cgproc.cpp cgfill.cpp cgrender.cpp main.cpp)
+add_executable(circlegen cgio.cpp cgproc.cpp main.cpp)
 
 target_compile_options(circlegen PRIVATE -O2)
 set_source_files_properties(cgfill.cpp PROPERTIES COMPILE_FLAGS -Wno-deprecated-declarations)
 target_link_libraries(circlegen 
+    png
+    jpeg
     tinyxml2 
     ${GLIB_LIBRARIES} 
     ${CAIRO_LIBRARIES} 
-    ${RSVG_LIBRARIES}
 )
 target_link_options(circlegen PRIVATE -fopenmp -O2)
