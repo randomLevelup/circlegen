@@ -1,37 +1,35 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
+project(QtImageApp LANGUAGES CXX)
 
-project(circlegen)
-
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GLIB REQUIRED glib-2.0)
-pkg_check_modules(CAIRO REQUIRED cairo)
-pkg_check_modules(RSVG REQUIRED librsvg-2.0)
+# Qt5 configuration
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
 
 include_directories(
     include 
     /usr/local/include 
     /usr/include/eigen3 
-    ${GLIB_INCLUDE_DIRS} 
-    ${CAIRO_INCLUDE_DIRS} 
-    ${RSVG_INCLUDE_DIRS}
+    /usr/include/x86_64-linux-gnu/qt5
 )
 
-# Exclude the include/dummy/ directory
-set(EXCLUDE_DIRS "include/dummy")
+# Add executable
+add_executable(image_app main.cpp)
 
-link_directories(./lib /usr/lib)
+target_include_directories(image_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(circlegen cgio.cpp cgproc.cpp cgfill.cpp cgrender.cpp main.cpp)
-
-target_compile_options(circlegen PRIVATE -O2)
-set_source_files_properties(cgfill.cpp PROPERTIES COMPILE_FLAGS -Wno-deprecated-declarations)
-target_link_libraries(circlegen 
-    tinyxml2 
-    ${GLIB_LIBRARIES} 
-    ${CAIRO_LIBRARIES} 
-    ${RSVG_LIBRARIES}
+# Link Qt libraries
+target_link_libraries(image_app
+    PRIVATE 
+    Qt5::Core
+    Qt5::Widgets
+    Qt5::Gui
 )
-target_link_options(circlegen PRIVATE -fopenmp -O2)

@@ -23,7 +23,7 @@
 #include "cgfill.h"
 
 #define HUBER_LOSS_DELTA 0.055
-#define TRIM_POINT_THRESHOLD 0.04
+#define TRIM_POINT_THRESHOLD 0.02
 #define MAX_ITERATIONS 100
 #define MIN_GRAD_LENGTH 1e-10
 #define MIN_STEP_LENGTH 1e-12
