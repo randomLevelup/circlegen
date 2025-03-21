@@ -50,7 +50,7 @@ void jitteredResample(dpixmap *pm, int new_width, double jitter);
  * @param pm dpixmap structure containing image data
  * @param points (optional) List of points to be saved
  */
-void saveImage(dpixmap pm, dpointlist *points);
+void saveImage(dpixmap pm, dpointlist *points, std::vector<dcircle> &circles);
 
 void breakpointSaveImage(dpixmap *pm, dpointlist &points, dcircle &current, dcircle &last);
 

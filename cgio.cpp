@@ -229,7 +229,7 @@ void jitteredResample(dpixmap *pm, int new_width, double jitter) {
     pm->height = new_height;
 }
 
-void saveImage(dpixmap pm, dpointlist *points=nullptr) {
+void saveImage(dpixmap pm, dpointlist *points, std::vector<dcircle> &circles) {
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pm.width, pm.height);
     cairo_t *cr = cairo_create(surface);
 
@@ -251,9 +251,20 @@ void saveImage(dpixmap pm, dpointlist *points=nullptr) {
         for (const auto& point : *points) {
             int x = std::get<0>(point);
             int y = std::get<1>(point);
-            cairo_rectangle(cr, x - 1, y - 1, 3, 3);
+            cairo_arc(cr, x, y, 2, 0, 2 * M_PI);
             cairo_stroke(cr);
         }
+    }
+
+    // Draw circles
+    cairo_set_source_rgb(cr, 1, 0, 0);
+    cairo_set_line_width(cr, 1);
+    for (const auto& circle : circles) {
+        double cx = std::get<0>(circle);
+        double cy = std::get<1>(circle);
+        double r = std::get<2>(circle);
+        cairo_arc(cr, cx, cy, r, 0, 2 * M_PI);
+        cairo_stroke(cr);
     }
 
     cairo_surface_write_to_png(surface, "output.png");

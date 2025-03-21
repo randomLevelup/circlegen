@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     std::vector<dcircle> circles = generateCircles(points, &pm, 10);
 
     std::cout << "\nSaving image..." << std::endl;
-    saveImage(pm, &points);
+    saveImage(pm, &points, circles);
     std::cout << "Saved to 'output.png'." << std::endl;
 
     delete[] pm.data;

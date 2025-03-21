@@ -38,17 +38,16 @@ struct CircleOptimization {
 
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
         /* BREAKPOINT: first display circles, then update last */
-        dcircle current_circle = std::make_tuple(params(0), params(1), params(2));
-        dcircle last_circle = last;
-        dpointlist current_pointlist = dpl;
+        // dcircle current_circle = std::make_tuple(params(0), params(1), params(2));
+        // dcircle last_circle = last;
+        // dpointlist current_pointlist = dpl;
 
-        if (!equalCircles(current_circle, last_circle, 0.1)) {
-            breakpointSaveImage(dpm, current_pointlist, current_circle, last_circle);
-            std::string _; std::cin >> _; // wait for user input
-            getchar();
+        // if (!equalCircles(current_circle, last_circle, 0.1)) {
+        //     breakpointSaveImage(dpm, current_pointlist, current_circle, last_circle);
+        //     getchar(); // wait for user input
     
-            last = std::make_tuple(params(0), params(1), params(2));
-        }
+        //     last = std::make_tuple(params(0), params(1), params(2));
+        // }
 
         /* continue optimization */
         double total_loss = 0.0;
@@ -56,14 +55,19 @@ struct CircleOptimization {
         double cy = params(1);
         double r = params(2);
 
+        int count = 0;
         for (const auto &point : dpl) {
             double x = std::get<0>(point);
             double y = std::get<1>(point);
-            double dist = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
-            total_loss += std::abs(dist - r);
+            double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+            double dist_edge = std::abs(dist_center - r);
+            if (dist_edge < 150) {
+                ++count;
+                total_loss += dist_edge;
+            }
         }
 
-        return total_loss;
+        return total_loss / (double)count;
     }
 };
 
@@ -154,17 +158,36 @@ dpointlist samplePoints(dpixmap pm, int num, double threshold) {
 }
 
 static gdc::GradientDescent<double, CircleOptimization,
-    gdc::DecreaseBacktracking<double>> makeOptimizer() {
+    gdc::BarzilaiBorwein<double>> makeOptimizer() {
 
     gdc::GradientDescent<double, CircleOptimization,
-        gdc::DecreaseBacktracking<double>> optimizer;
+        gdc::BarzilaiBorwein<double>> optimizer;
     
-    optimizer.setMaxIterations(100);
-    optimizer.setMinGradientLength(1e-6);
-    optimizer.setMinStepLength(1e-6);
-    optimizer.setVerbosity(2);
+    optimizer.setMaxIterations(40);
+    optimizer.setMinGradientLength(0.06);
+    optimizer.setMinStepLength(1e-9);
+    optimizer.setVerbosity(0);
 
     return optimizer;
+}
+
+dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold) {
+    dpointlist trimmed;
+    double cx = std::get<0>(circle);
+    double cy = std::get<1>(circle);
+    double r = std::get<2>(circle);
+
+    for (const auto &point : pointlist) {
+        double x = std::get<0>(point);
+        double y = std::get<1>(point);
+        double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+        double dist_edge = std::abs(dist_center - r);
+        if (dist_edge > threshold) {
+            trimmed.push_back(point);
+        }
+    }
+
+    return trimmed;
 }
 
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num) {
@@ -174,9 +197,10 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
 
     std::vector<dcircle> circles;
     while (true) {
-        if (circles.size() >= (unsigned)num || pointlist.size() <= 2) {
+        if (circles.size() >= (unsigned)num || pointlist.size() <= 5) {
             return circles;
         }
+        std::cout << "Num points left: " << pointlist.size() << std::endl;
 
         // pick 2 random points from pointlist
         dis = std::uniform_int_distribution<int>(0, pointlist.size() - 1);
@@ -201,11 +225,15 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
 
         auto result = opt.minimize(initialGuess);
 
-        if (result.fval) {
-            // success
+        if (result.fval && result.fval > 0) {
             circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
+            dcircle &new_circle = circles.back();
+            pointlist = trimPointlist(pointlist, new_circle, 50);
+            std::cout << "Circle found." 
+                      << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
+                      << " Radius: " << std::get<2>(new_circle) << std::endl;
+
         } else {
-            // failure
             std::cerr << "Failed to optimize circle" << std::endl;
         }
     }
