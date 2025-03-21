@@ -15,8 +15,7 @@
 #include <Eigen/Core>
 #include "gdcpp.h"
 
-#include "cgio.h"
-#include "cgproc.h"
+#include "circlegen.h"
 
 static void set_pixel(dpixel *pixel, double val);
 static double mag_factor(dpixel pixel);

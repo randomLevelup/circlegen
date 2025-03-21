@@ -5,7 +5,7 @@
  * @brief input/output implementations for circlegen
  */
 
-#include "cgio.h"
+#include "circlegen.h"
 
 #include <iostream>
 #include <random>

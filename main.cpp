@@ -4,8 +4,7 @@
 #include "argparse.hpp"
 #include "gdcpp.h"
 
-#include "cgio.h"
-#include "cgproc.h"
+#include "circlegen.h"
 
 struct CGArgs : public argparse::Args {
     std::string &img_path  = arg("src_path", "a positional string argument");
