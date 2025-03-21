@@ -23,7 +23,11 @@ struct dpixmap {
     dpixel *data;
 }; typedef struct dpixmap dpixmap;
 
-typedef std::vector<std::tuple<int, int>> dpointlist;
+typedef std::tuple<int, int> dpoint;
+typedef std::vector<dpoint> dpointlist;
+typedef std::tuple<double, double, double> dcircle;
+
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon);
 
 /**
  * @brief Parse an image file and return a dpixmap structure
@@ -33,10 +37,21 @@ typedef std::vector<std::tuple<int, int>> dpointlist;
 dpixmap parseImage(const char *filename);
 
 /**
+ * @brief Apply a jittered sampling to the image
+ * @param pm a dpixmap
+ * @param tgtwidth target width
+ * @param jitter the jitter factor
+ * @return sampled dpixmap
+ */
+void jitteredResample(dpixmap *pm, int new_width, double jitter);
+
+/**
  * @brief Save a dpixmap structure to an image file
  * @param pm dpixmap structure containing image data
  * @param points (optional) List of points to be saved
  */
 void saveImage(dpixmap pm, dpointlist *points);
+
+void breakpointSaveImage(dpixmap *pm, dpointlist &points, dcircle &current, dcircle &last);
 
 #endif

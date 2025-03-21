@@ -5,14 +5,90 @@
  * @brief circlegen processing implementations
  */
 
+#include <iostream>
 #include <vector>
 #include <tuple>
 #include <cmath>
 #include <random>
 #include <algorithm>
 
+#include <Eigen/Core>
+#include "gdcpp.h"
+
 #include "cgio.h"
 #include "cgproc.h"
+
+static void set_pixel(dpixel *pixel, double val);
+static double mag_factor(dpixel pixel);
+dpixmap sobelFilter(dpixmap pm);
+dpointlist samplePoints(dpixmap pm, int num, double threshold);
+
+struct CircleOptimization {
+    static dpixmap *dpm;
+    static dpointlist dpl;
+    static dcircle last;
+
+    CircleOptimization() { 
+        last = std::make_tuple(0.0, 0.0, 0.0);
+    }
+
+    static void initialize(dpointlist &points, dpixmap *pixmap) {
+        dpm = pixmap;
+        dpl = points;
+    }
+
+    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
+        /* BREAKPOINT: first display circles, then update last */
+        dcircle current_circle = std::make_tuple(params(0), params(1), params(2));
+        dcircle last_circle = last;
+        dpointlist current_pointlist = dpl;
+
+        if (!equalCircles(current_circle, last_circle, 0.1)) {
+            breakpointSaveImage(dpm, current_pointlist, current_circle, last_circle);
+            std::string _; std::cin >> _; // wait for user input
+            getchar();
+    
+            last = std::make_tuple(params(0), params(1), params(2));
+        }
+
+        /* continue optimization */
+        double total_loss = 0.0;
+        double cx = params(0);
+        double cy = params(1);
+        double r = params(2);
+
+        for (const auto &point : dpl) {
+            double x = std::get<0>(point);
+            double y = std::get<1>(point);
+            double dist = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+            total_loss += std::abs(dist - r);
+        }
+
+        return total_loss;
+    }
+};
+
+// Define static members of CircleOptimization
+dpixmap* CircleOptimization::dpm = nullptr;
+dpointlist CircleOptimization::dpl;
+dcircle CircleOptimization::last = std::make_tuple(0.0, 0.0, 0.0);
+
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon) {
+    return abs(std::get<0>(lhs) - std::get<0>(rhs)) < epsilon &&
+           abs(std::get<1>(lhs) - std::get<1>(rhs)) < epsilon &&
+           abs(std::get<2>(lhs) - std::get<2>(rhs)) < epsilon;
+}
+
+static void set_pixel(dpixel *pixel, double val) {
+    pixel->R = val;
+    pixel->G = val;
+    pixel->B = val;
+}
+
+static double mag_factor(dpixel pixel) {
+    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
+    return (255.0 - mag) / 255.0;
+}
 
 dpixmap sobelFilter(dpixmap pm) {
     dpixmap filtered = {pm.width, pm.height, new dpixel[pm.width * pm.height]};
@@ -47,18 +123,11 @@ dpixmap sobelFilter(dpixmap pm) {
             int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
             if (magnitude > 255) magnitude = 255;
 
-            filtered.data[y * width + x].R = magnitude;
-            filtered.data[y * width + x].G = magnitude;
-            filtered.data[y * width + x].B = magnitude;
+            set_pixel(&filtered.data[y * width + x], magnitude);
         }
     }
 
     return filtered;
-}
-
-static double mag_factor(dpixel pixel) {
-    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
-    return (255.0 - mag) / 255.0;
 }
 
 dpointlist samplePoints(dpixmap pm, int num, double threshold) {
@@ -83,4 +152,62 @@ dpointlist samplePoints(dpixmap pm, int num, double threshold) {
         points.resize(num);
     }
     return points;
+}
+
+static gdc::GradientDescent<double, CircleOptimization,
+    gdc::DecreaseBacktracking<double>> makeOptimizer() {
+
+    gdc::GradientDescent<double, CircleOptimization,
+        gdc::DecreaseBacktracking<double>> optimizer;
+    
+    optimizer.setMaxIterations(100);
+    optimizer.setMinGradientLength(1e-6);
+    optimizer.setMinStepLength(1e-6);
+    optimizer.setVerbosity(2);
+
+    return optimizer;
+}
+
+std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis;
+
+    std::vector<dcircle> circles;
+    while (true) {
+        if (circles.size() >= (unsigned)num || pointlist.size() <= 2) {
+            return circles;
+        }
+
+        // pick 2 random points from pointlist
+        dis = std::uniform_int_distribution<int>(0, pointlist.size() - 1);
+        dpoint p1 = pointlist[dis(gen)];
+        dpoint p2 = pointlist[dis(gen)];
+
+        // p1 == center, p2 == edge
+        double cx = std::get<0>(p1);
+        double cy = std::get<1>(p1);
+        double r = std::sqrt((std::get<0>(p1) - std::get<0>(p2)) * (std::get<0>(p1) - std::get<0>(p2)) +
+                             (std::get<1>(p1) - std::get<1>(p2)) * (std::get<1>(p1) - std::get<1>(p2)));
+        
+        Eigen::VectorXd initialGuess(3);
+        initialGuess(0) = cx;
+        initialGuess(1) = cy;
+        initialGuess(2) = r;
+
+        auto opt = makeOptimizer();
+        CircleOptimization::initialize(pointlist, pm);
+        CircleOptimization circleOpt;
+        opt.setObjective(circleOpt);
+
+        auto result = opt.minimize(initialGuess);
+
+        if (result.fval) {
+            // success
+            circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
+        } else {
+            // failure
+            std::cerr << "Failed to optimize circle" << std::endl;
+        }
+    }
 }

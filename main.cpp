@@ -17,7 +17,16 @@ int main(int argc, char *argv[]) {
     std::cout << "Starting program..." << std::endl;
     std::cout << "File path: " << args.img_path << std::endl;
 
-    dpixmap pm = parseImage(args.img_path.c_str());
+    dpixmap pm;
+    try {
+        pm = parseImage(args.img_path.c_str());
+    }
+    catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    jitteredResample(&pm, 1000, 0.75);
 
     std::cout << "Parsed image file: "
               << "width: " << pm.width << ", height: " << pm.height << std::endl;
@@ -27,6 +36,9 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Sampling points..." << std::endl;
     dpointlist points = samplePoints(filtered, 300, 0.75);
+
+    std::cout << "Generating circles..." << std::endl;
+    std::vector<dcircle> circles = generateCircles(points, &pm, 10);
 
     std::cout << "\nSaving image..." << std::endl;
     saveImage(pm, &points);

@@ -6,6 +6,7 @@
  */
 
 #include "cgio.h"
+#include <vector>
 
 #ifndef CGPROC_H
 #define CGPROC_H
@@ -13,5 +14,7 @@
 dpixmap sobelFilter(dpixmap pm);
 
 dpointlist samplePoints(dpixmap pm, int num, double threshold);
+
+std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
 
 #endif

@@ -6,7 +6,10 @@
  */
 
 #include "cgio.h"
+
 #include <iostream>
+#include <random>
+
 #include <png.h>
 #include <jpeglib.h>
 #include <cairo.h>
@@ -140,10 +143,90 @@ dpixmap parseImage(const char *filename) {
         jpeg_destroy_decompress(&jcinfo);
         fclose(infile);
     } else {
-        std::cerr << "Error: Unsupported image format" << std::endl;
+        std::cerr << "Unsupported image format" << std::endl;
     }
 
     return image;
+}
+
+void jitteredResample(dpixmap *pm, int new_width, double jitter) {
+    double scalefactor = (double)new_width / (double)(pm->width);
+    int new_height = (int)(pm->height * scalefactor);
+    dpixel *new_data = new dpixel[new_width * new_height];
+    
+    // Create random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> jitter_dist(-jitter, jitter);
+    
+    // For each pixel in the new image
+    for (int y = 0; y < new_height; ++y) {
+        for (int x = 0; x < new_width; ++x) {
+            // Calculate the corresponding position in the original image
+            double orig_x = x / scalefactor;
+            double orig_y = y / scalefactor;
+            
+            // Add jitter
+            if (jitter > 0.0) {
+                orig_x += jitter_dist(gen);
+                orig_y += jitter_dist(gen);
+            }
+            
+            // Clamp to image boundaries
+            orig_x = std::max(0.0, std::min(orig_x, pm->width - 1.0));
+            orig_y = std::max(0.0, std::min(orig_y, pm->height - 1.0));
+            
+            // Get the four surrounding pixels for bilinear interpolation
+            int x0 = (int)orig_x;
+            int y0 = (int)orig_y;
+            int x1 = std::min(x0 + 1, pm->width - 1);
+            int y1 = std::min(y0 + 1, pm->height - 1);
+            
+            // Calculate interpolation weights
+            double wx1 = orig_x - x0;
+            double wy1 = orig_y - y0;
+            double wx0 = 1.0 - wx1;
+            double wy0 = 1.0 - wy1;
+            
+            // Get the four surrounding pixels
+            dpixel p00 = pm->data[y0 * pm->width + x0];
+            dpixel p01 = pm->data[y0 * pm->width + x1];
+            dpixel p10 = pm->data[y1 * pm->width + x0];
+            dpixel p11 = pm->data[y1 * pm->width + x1];
+            
+            // Bilinear interpolation for each color channel
+            dpixel result;
+            result.R = (uint8_t)(
+                wx0 * wy0 * p00.R +
+                wx1 * wy0 * p01.R +
+                wx0 * wy1 * p10.R +
+                wx1 * wy1 * p11.R
+            );
+            
+            result.G = (uint8_t)(
+                wx0 * wy0 * p00.G +
+                wx1 * wy0 * p01.G +
+                wx0 * wy1 * p10.G +
+                wx1 * wy1 * p11.G
+            );
+            
+            result.B = (uint8_t)(
+                wx0 * wy0 * p00.B +
+                wx1 * wy0 * p01.B +
+                wx0 * wy1 * p10.B +
+                wx1 * wy1 * p11.B
+            );
+            
+            // Store the result
+            new_data[y * new_width + x] = result;
+        }
+    }
+    
+    // Clean up old data and update the pixmap
+    delete[] pm->data;
+    pm->data = new_data;
+    pm->width = new_width;
+    pm->height = new_height;
 }
 
 void saveImage(dpixmap pm, dpointlist *points=nullptr) {
@@ -163,7 +246,7 @@ void saveImage(dpixmap pm, dpointlist *points=nullptr) {
     }
 
     if (points != nullptr) {
-        cairo_set_source_rgb(cr, 1, 0, 0);
+        cairo_set_source_rgb(cr, 1, 0, 1);
         cairo_set_line_width(cr, 2);
         for (const auto& point : *points) {
             int x = std::get<0>(point);
@@ -178,3 +261,44 @@ void saveImage(dpixmap pm, dpointlist *points=nullptr) {
     cairo_surface_destroy(surface);
 }
 
+void breakpointSaveImage(dpixmap *pm, dpointlist &points, dcircle &current, dcircle &last) {
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, pm->width, pm->height);
+    cairo_t *cr = cairo_create(surface);
+
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_paint(cr);
+
+    for (int y = 0; y < pm->height; ++y) {
+        for (int x = 0; x < pm->width; ++x) {
+            dpixel pixel = pm->data[y * pm->width + x];
+            cairo_set_source_rgba(cr, pixel.R / 255.0, pixel.G / 255.0, pixel.B / 255.0, 1.0);
+            cairo_rectangle(cr, x, y, 1, 1);
+            cairo_fill(cr);
+        }
+    }
+
+    if (points.size() > 0) {
+        cairo_set_source_rgb(cr, 1, 0, 1);
+        cairo_set_line_width(cr, 2);
+        for (const auto& point : points) {
+            int x = std::get<0>(point);
+            int y = std::get<1>(point);
+            cairo_arc(cr, x, y, 2, 0, 2 * M_PI);
+            cairo_stroke(cr);
+        }
+    }
+
+    // draw last circle
+    cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+    cairo_arc(cr, std::get<0>(last), std::get<1>(last), std::get<2>(last), 0, 2 * M_PI);
+    cairo_stroke(cr);
+
+    // draw current circle
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_arc(cr, std::get<0>(current), std::get<1>(current), std::get<2>(current), 0, 2 * M_PI);
+    cairo_stroke(cr);
+
+    cairo_surface_write_to_png(surface, "output.png");
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+}
