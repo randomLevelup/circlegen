@@ -197,11 +197,9 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
 
     std::vector<dcircle> circles;
     while (true) {
-        if (circles.size() >= (unsigned)num || pointlist.size() <= 5) {
+        if (circles.size() >= (unsigned)num || pointlist.size() <= 6) {
             return circles;
         }
-        std::cout << "Num points left: " << pointlist.size() << std::endl;
-
         // pick 2 random points from pointlist
         dis = std::uniform_int_distribution<int>(0, pointlist.size() - 1);
         dpoint p1 = pointlist[dis(gen)];
@@ -232,9 +230,7 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
             std::cout << "Circle found." 
                       << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
                       << " Radius: " << std::get<2>(new_circle) << std::endl;
-
-        } else {
-            std::cerr << "Failed to optimize circle" << std::endl;
+            std::cout << "Num points left: " << pointlist.size() << std::endl;
         }
     }
 }

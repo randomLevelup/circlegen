@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     dpointlist points = samplePoints(filtered, 300, 0.75);
 
     std::cout << "Generating circles..." << std::endl;
-    std::vector<dcircle> circles = generateCircles(points, &pm, 10);
+    std::vector<dcircle> circles = generateCircles(points, &pm, 11);
 
     std::cout << "\nSaving image..." << std::endl;
     saveImage(pm, &points, circles);
