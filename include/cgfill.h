@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cgproc.h"
+#include "circlegen.h"
 
 #ifndef CGFILL_H
 #define CGFILL_H

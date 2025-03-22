@@ -36,14 +36,19 @@ int main(int argc, char *argv[]) {
     std::cout << "Sampling points..." << std::endl;
     dpointlist points = samplePoints(filtered, 300, 0.75);
 
-    std::cout << "Generating circles..." << std::endl;
+    std::cout << "\nGenerating circles..." << std::endl;
     std::vector<dcircle> circles = generateCircles(points, &pm, 11);
 
+    std::cout << "\nGenerating fill colors..." << std::endl;
+    dpixmap qpm = quantizeColors(pm, circles);
+
     std::cout << "\nSaving image..." << std::endl;
-    saveImage(pm, &points, circles);
+    saveImage(qpm, &points, circles);
     std::cout << "Saved to 'output.png'." << std::endl;
 
     delete[] pm.data;
     delete[] filtered.data;
+    delete[] qpm.data;
+    std::cout << "\nProgram finished." << std::endl;
     return 0;
 }
