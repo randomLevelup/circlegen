@@ -231,7 +231,7 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
         if (result.fval && result.fval > 0) {
             circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
             dcircle &new_circle = circles.back();
-            pointlist = trimPointlist(pointlist, new_circle, 30);
+            pointlist = trimPointlist(pointlist, new_circle, 20);
             std::cout << "Circle found." 
                       << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
                       << " Radius: " << std::get<2>(new_circle) << std::endl;

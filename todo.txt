@@ -2,6 +2,8 @@ TODO
 
 x +implement color quantizer
 
++fix memory leaks
+
 +document public functions
 
 +implement trim radius adjustments

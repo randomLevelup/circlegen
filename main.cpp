@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     dpointlist points = samplePoints(filtered, 300, 0.75);
 
     std::cout << "\nGenerating circles..." << std::endl;
-    std::vector<dcircle> circles = generateCircles(points, &pm, 9);
+    std::vector<dcircle> circles = generateCircles(points, &pm, 7);
 
     std::cout << "\nGenerating fill colors..." << std::endl;
     dpixmap qpm = quantizeColors(pm, circles);
