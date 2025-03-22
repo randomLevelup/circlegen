@@ -52,6 +52,7 @@ void jitteredResample(dpixmap *pm, int new_width, double jitter);
  */
 void saveImage(dpixmap pm, dpointlist *points, std::vector<dcircle> &circles);
 
+// for debugging
 void breakpointSaveImage(dpixmap *pm, dpointlist &points, dcircle &current, dcircle &last);
 
 dpixmap sobelFilter(dpixmap pm);

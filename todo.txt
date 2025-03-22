@@ -1,0 +1,11 @@
+TODO
+
+x +implement color quantizer
+
++document public functions
+
++implement trim radius adjustments
+
++implement more program arguments
+
++port to emscripten

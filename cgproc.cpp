@@ -17,10 +17,30 @@
 
 #include "circlegen.h"
 
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon);
 static void set_pixel(dpixel *pixel, double val);
 static double mag_factor(dpixel pixel);
 dpixmap sobelFilter(dpixmap pm);
 dpointlist samplePoints(dpixmap pm, int num, double threshold);
+dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold);
+std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
+
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon) { // for debugging
+    return abs(std::get<0>(lhs) - std::get<0>(rhs)) < epsilon &&
+           abs(std::get<1>(lhs) - std::get<1>(rhs)) < epsilon &&
+           abs(std::get<2>(lhs) - std::get<2>(rhs)) < epsilon;
+}
+
+static void set_pixel(dpixel *pixel, double val) {
+    pixel->R = val;
+    pixel->G = val;
+    pixel->B = val;
+}
+
+static double mag_factor(dpixel pixel) {
+    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
+    return (255.0 - mag) / 255.0;
+}
 
 struct CircleOptimization {
     static dpixmap *dpm;
@@ -75,23 +95,6 @@ struct CircleOptimization {
 dpixmap* CircleOptimization::dpm = nullptr;
 dpointlist CircleOptimization::dpl;
 dcircle CircleOptimization::last = std::make_tuple(0.0, 0.0, 0.0);
-
-bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon) {
-    return abs(std::get<0>(lhs) - std::get<0>(rhs)) < epsilon &&
-           abs(std::get<1>(lhs) - std::get<1>(rhs)) < epsilon &&
-           abs(std::get<2>(lhs) - std::get<2>(rhs)) < epsilon;
-}
-
-static void set_pixel(dpixel *pixel, double val) {
-    pixel->R = val;
-    pixel->G = val;
-    pixel->B = val;
-}
-
-static double mag_factor(dpixel pixel) {
-    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
-    return (255.0 - mag) / 255.0;
-}
 
 dpixmap sobelFilter(dpixmap pm) {
     dpixmap filtered = {pm.width, pm.height, new dpixel[pm.width * pm.height]};
@@ -157,6 +160,25 @@ dpointlist samplePoints(dpixmap pm, int num, double threshold) {
     return points;
 }
 
+dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold) {
+    dpointlist trimmed;
+    double cx = std::get<0>(circle);
+    double cy = std::get<1>(circle);
+    double r = std::get<2>(circle);
+    
+    for (const auto &point : pointlist) {
+        double x = std::get<0>(point);
+        double y = std::get<1>(point);
+        double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+        double dist_edge = std::abs(dist_center - r);
+        if (dist_edge > threshold) {
+            trimmed.push_back(point);
+        }
+    }
+    
+    return trimmed;
+}
+
 static gdc::GradientDescent<double, CircleOptimization,
     gdc::BarzilaiBorwein<double>> makeOptimizer() {
 
@@ -171,33 +193,16 @@ static gdc::GradientDescent<double, CircleOptimization,
     return optimizer;
 }
 
-dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold) {
-    dpointlist trimmed;
-    double cx = std::get<0>(circle);
-    double cy = std::get<1>(circle);
-    double r = std::get<2>(circle);
-
-    for (const auto &point : pointlist) {
-        double x = std::get<0>(point);
-        double y = std::get<1>(point);
-        double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
-        double dist_edge = std::abs(dist_center - r);
-        if (dist_edge > threshold) {
-            trimmed.push_back(point);
-        }
-    }
-
-    return trimmed;
-}
-
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dis;
 
     std::vector<dcircle> circles;
+
+    int fail_count = 0;
     while (true) {
-        if (circles.size() >= (unsigned)num || pointlist.size() <= 6) {
+        if (circles.size() >= (unsigned)num || pointlist.size() <= 3 || fail_count > 100) {
             return circles;
         }
         // pick 2 random points from pointlist
@@ -226,11 +231,13 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
         if (result.fval && result.fval > 0) {
             circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
             dcircle &new_circle = circles.back();
-            pointlist = trimPointlist(pointlist, new_circle, 50);
+            pointlist = trimPointlist(pointlist, new_circle, 30);
             std::cout << "Circle found." 
                       << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
                       << " Radius: " << std::get<2>(new_circle) << std::endl;
             std::cout << "Num points left: " << pointlist.size() << std::endl;
+            fail_count = 0;
         }
+        else { ++fail_count; }
     }
 }
