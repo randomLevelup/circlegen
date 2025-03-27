@@ -4,10 +4,41 @@
         <meta charset="utf-8">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <title>Circlegen</title>
-        
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin-top: 50px;
+            }
+            #uploaded-image {
+                max-width: 350pt;
+                max-height: 350pt;
+                height: auto;
+                margin: 20px auto;
+                display: none;
+            }
+        </style>
     </head>
-
     <body>
-
+        <h1>Circlegen</h1>
+        <img id="uploaded-image" alt="Uploaded Image">
+        <br>
+        <input type="file" id="image-upload" accept=".png, .jpg, .jpeg">
+        <script>
+            document.getElementById('image-upload').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.getElementById('uploaded-image');
+                        img.src = e.target.result;
+                        img.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('Please upload a valid PNG or JPG image.');
+                }
+            });
+        </script>
     </body>
 </html>
