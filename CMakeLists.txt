@@ -13,7 +13,8 @@ pkg_check_modules(RSVG REQUIRED librsvg-2.0)
 include_directories(
     include 
     /usr/local/include 
-    /usr/include/eigen3 
+    /usr/include/eigen3
+    ~/emscripten/system/include
     ${GLIB_INCLUDE_DIRS} 
     ${CAIRO_INCLUDE_DIRS} 
 )
