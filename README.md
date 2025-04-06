@@ -7,7 +7,12 @@ This project was inspired by [this](https://x.com/TerribleMaps/status/1867903117
 Circlegen features WebAssembly support, and I'm hosting a [live demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) on my website.
 
 ## Examples
-Check out the [examples](/examples/outputs) folder and be amazed at the artistry
+| ![ex3](/examples/outputs/world.png) |
+|-|
+
+| ![ex1](/examples/outputs/cartman.png) | ![ex2](/examples/outputs/ironman.png) |
+|-|-|
+Check out the [examples](/examples/outputs) folder for more
 
 ## Build Instructions
 
