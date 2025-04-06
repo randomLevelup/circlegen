@@ -8,8 +8,8 @@
 #include <tuple>
 #include <vector>
 
-#ifndef CIRCLEGEN_H
-#define CIRCLEGEN_H
+#ifndef WASM_CIRCLEGEN_H
+#define WASM_CIRCLEGEN_H
 
 struct dpixel {
     int R;
@@ -27,15 +27,6 @@ typedef std::tuple<int, int> dpoint;
 typedef std::vector<dpoint> dpointlist;
 typedef std::tuple<double, double, double> dcircle;
 
-bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon);
-
-/**
- * @brief Parse an image file and return a dpixmap structure
- * @param filename Path to the image file
- * @return dpixmap structure containing image data
- */
-dpixmap parseImage(const char *filename);
-
 /**
  * @brief Apply a jittered sampling to the image
  * @param pm a dpixmap
@@ -44,16 +35,6 @@ dpixmap parseImage(const char *filename);
  * @return sampled dpixmap
  */
 void jitteredResample(dpixmap *pm, int new_width, double jitter);
-
-/**
- * @brief Save a dpixmap structure to an image file
- * @param pm dpixmap structure containing image data
- * @param points (optional) List of points to be saved
- */
-void saveImage(dpixmap pm, dpointlist *points, std::vector<dcircle> &circles);
-
-// for debugging
-void breakpointSaveImage(dpixmap *pm, dpointlist &points, dcircle &current, dcircle &last);
 
 dpixmap sobelFilter(dpixmap pm);
 

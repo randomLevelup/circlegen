@@ -39,6 +39,7 @@
                 display: none;
             }
         </style>
+        <script src="circlegen.js"></script>
     </head>
 
     <body>
@@ -70,19 +71,34 @@
             let inputCtx = inputCanvas.getContext('2d');
             let outputCtx = outputCanvas.getContext('2d');
             let imageData = null;
-            let Module = null;
+            let WasmModule = null;
+
+            var mem = new WebAssembly.Memory({ initial: 256, maximum: 512 });
 
             // load WASM module
             fetch('circlegen.wasm')
                 .then(response => response.arrayBuffer())
                 .then(buffer => WebAssembly.instantiate(buffer, {
                     env: {
-                        memory: new WebAssembly.Memory({ initial: 256, maximum: 512}),
-
+                        memory: mem,
+                        emscripten_resize_heap: function(delta) { mem.grow(delta); },
+                        _abort_js: function() { console.log("Abort called"); },
+                        _tzset_js: function() { console.log("tzset called"); },
+                        __assert_fail: function() { console.log("Assert failed"); },
+                        __cxa_throw: function() { console.log("CXAbort called"); },
+                    },
+                    wasi_snapshot_preview1: {
+                        fd_read: function() { return 0; },
+                        fd_write: function() { return 0; },
+                        fd_seek: function() { return 0; },
+                        fd_close: function() { return 0; },
+                        environ_sizes_get: function() { return 0; },
+                        environ_get: function() { return 0; },
+                        random_get: function() { return 0; },
                     }
                 }))
                 .then(result => {
-                    Module = result.instance.exports;
+                    WasmModule = result.instance.exports;
                     console.log('WASM module loaded');
                 })
                 .catch(err => console.error('Error loading WASM module:', err));
@@ -111,7 +127,7 @@
                 });
                 
                 generateBtn.addEventListener('click', async () => {
-                    if (!inputCtx || !Module) return;
+                    if (!inputCtx || !WasmModule) return;
                     
                     // Get image data from input canvas
                     imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
@@ -143,10 +159,10 @@
                     const numBytes = width * height * 4; // RGBA format
                     
                     // Allocate memory in the WASM module
-                    const inputPtr = Module.malloc(numBytes);
+                    const inputPtr = WasmModule.malloc(numBytes);
                     
                     // Create a view into the WASM memory
-                    const heap = new Uint8Array(Module.memory.buffer);
+                    const heap = new Uint8Array(WasmModule.memory.buffer);
                     
                     // Copy the image data to WASM memory
                     for (let i = 0; i < numBytes; i++) {
@@ -154,7 +170,7 @@
                     }
                     
                     // Call the WASM function to process the image
-                    const resultPtr = Module.processImageData(inputPtr, width, height);
+                    const resultPtr = WasmModule._Z16processImageDataPcii(inputPtr, width, height);
                     
                     // Get the dimensions of the processed image
                     const resultWidth = Math.min(width, 1000);
@@ -170,8 +186,8 @@
                     }
                     
                     // Free the allocated memory
-                    Module.free(inputPtr);
-                    Module.freeMemory(resultPtr);
+                    WasmModule.free(inputPtr);
+                    WasmModule._Z13freeImageDataPh(resultPtr);
                     
                     return resultData;
                 }

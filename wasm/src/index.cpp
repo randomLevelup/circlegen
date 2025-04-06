@@ -1,13 +1,13 @@
 #include <emscripten.h>
 #include <vector>
 #include <cstdint>
-#include "./circlegen.h"
+#include "wasm_circlegen.h"
 
 int main() { return 0; }
 
-extern "C" {
 EMSCRIPTEN_KEEPALIVE
 uint8_t *processImageData(char *data, int width, int height) {
+
     dpixmap inputPm;
     inputPm.width = width;
     inputPm.height = height;
@@ -43,4 +43,4 @@ EMSCRIPTEN_KEEPALIVE
 void freeImageData(uint8_t *data) {
     free(data);
 }
-}
+

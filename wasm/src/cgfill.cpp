@@ -5,7 +5,7 @@
  * @brief circlegen coloring implementations
  */
 
-#include "circlegen.h"
+#include "wasm_circlegen.h"
 
 #include <iostream>
 #include <cmath>

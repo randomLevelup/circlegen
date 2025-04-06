@@ -15,21 +15,14 @@
 #include <Eigen/Core>
 #include "gdcpp.h"
 
-#include "circlegen.h"
+#include "wasm_circlegen.h"
 
-bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon);
 static void set_pixel(dpixel *pixel, double val);
 static double mag_factor(dpixel pixel);
 dpixmap sobelFilter(dpixmap pm);
 dpointlist samplePoints(dpixmap pm, int num, double threshold);
 dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold);
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
-
-bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon) { // for debugging
-    return abs(std::get<0>(lhs) - std::get<0>(rhs)) < epsilon &&
-           abs(std::get<1>(lhs) - std::get<1>(rhs)) < epsilon &&
-           abs(std::get<2>(lhs) - std::get<2>(rhs)) < epsilon;
-}
 
 static void set_pixel(dpixel *pixel, double val) {
     pixel->R = val;

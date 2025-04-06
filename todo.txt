@@ -2,12 +2,14 @@ TODO
 
 x +implement color quantizer
 
-+fix memory leaks
+x +fix memory leaks
+
+x +port to emscripten
+
++fix emscripten mem size
 
 +document public functions
 
 +implement trim radius adjustments
 
 +implement more program arguments
-
-+port to emscripten
