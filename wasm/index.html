@@ -4,41 +4,178 @@
         <meta charset="utf-8">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <title>Circlegen</title>
+        
         <style>
-            body {
-                font-family: Arial, sans-serif;
+            h1 {
                 text-align: center;
-                margin-top: 50px;
             }
-            #uploaded-image {
-                max-width: 350pt;
-                max-height: 350pt;
-                height: auto;
-                margin: 20px auto;
+            table {
+                border-collapse: collapse;
+                margin: 0 auto;
+            }
+            td {
+                border: 2px solid black;
+                padding: 10px;
+            }
+            .button-container {
+                text-align: center;
+                margin-top: 20px;
+            }
+            button {
+                margin: 0 10px;
+                padding: 8px 16px;
+            }
+            canvas {
+                display: block;
+                max-width: 300px;
+                max-height: 300px;
+            }
+            .canvas-label {
+                text-align: center;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            input[type="file"] {
                 display: none;
             }
         </style>
     </head>
+
     <body>
-        <h1>Circlegen</h1>
-        <img id="uploaded-image" alt="Uploaded Image">
-        <br>
-        <input type="file" id="image-upload" accept=".png, .jpg, .jpeg">
+        <h1><b>Circlegen</b></h1>
+        
+        <table>
+            <tr>
+                <td>
+                    <canvas id="input-canvas"></canvas>
+                </td>
+                <td>
+                    <canvas id="output-canvas"></canvas>
+                </td>
+            </tr>
+        </table>
+        
+        <div class="button-container">
+            <input type="file" id="file-input" accept="image/*">
+            <button id="upload-btn">upload image</button>
+            <button id="generate-btn" disabled>generate</button>
+        </div>
+
         <script>
-            document.getElementById('image-upload').addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = document.getElementById('uploaded-image');
-                        img.src = e.target.result;
-                        img.style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    alert('Please upload a valid PNG or JPG image.');
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const generateBtn = document.getElementById('generate-btn');
+            const inputCanvas = document.getElementById('input-canvas');
+            const outputCanvas = document.getElementById('output-canvas');
+            let inputCtx = inputCanvas.getContext('2d');
+            let outputCtx = outputCanvas.getContext('2d');
+            let imageData = null;
+            let Module = null;
+
+            // load WASM module
+            fetch('circlegen.wasm')
+                .then(response => response.arrayBuffer())
+                .then(buffer => WebAssembly.instantiate(buffer, {
+                    env: {
+                        memory: new WebAssembly.Memory({ initial: 256, maximum: 512}),
+
+                    }
+                }))
+                .then(result => {
+                    Module = result.instance.exports;
+                    console.log('WASM module loaded');
+                })
+                .catch(err => console.error('Error loading WASM module:', err));
+
+
+                uploadBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                fileInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const img = await createImageBitmap(file);
+                    inputCanvas.width = img.width;
+                    inputCanvas.height = img.height;
+                    inputCtx.drawImage(img, 0, 0);
+                    
+                    // Enable generate button after image is loaded
+                    generateBtn.disabled = false;
+                    
+                    // Reset output canvas
+                    outputCanvas.width = inputCanvas.width;
+                    outputCanvas.height = inputCanvas.height;
+                    outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+                });
+                
+                generateBtn.addEventListener('click', async () => {
+                    if (!inputCtx || !Module) return;
+                    
+                    // Get image data from input canvas
+                    imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
+                    
+                    // Show processing indicator
+                    generateBtn.disabled = true;
+                    generateBtn.textContent = "Processing...";
+                    
+                    // Process the image in the next frame to allow UI update
+                    setTimeout(async () => {
+                        // Process the image
+                        const result = await processImage(imageData);
+                        
+                        // Display on output canvas
+                        outputCanvas.width = result.width;
+                        outputCanvas.height = result.height;
+                        outputCtx.putImageData(result, 0, 0);
+                        
+                        // Reset button
+                        generateBtn.textContent = "generate";
+                        generateBtn.disabled = false;
+                    }, 50);
+                });
+            
+                async function processImage(imageData) {
+                    // Allocate memory in WASM for the input image
+                    const width = imageData.width;
+                    const height = imageData.height;
+                    const numBytes = width * height * 4; // RGBA format
+                    
+                    // Allocate memory in the WASM module
+                    const inputPtr = Module.malloc(numBytes);
+                    
+                    // Create a view into the WASM memory
+                    const heap = new Uint8Array(Module.memory.buffer);
+                    
+                    // Copy the image data to WASM memory
+                    for (let i = 0; i < numBytes; i++) {
+                        heap[inputPtr + i] = imageData.data[i];
+                    }
+                    
+                    // Call the WASM function to process the image
+                    const resultPtr = Module.processImageData(inputPtr, width, height);
+                    
+                    // Get the dimensions of the processed image
+                    const resultWidth = Math.min(width, 1000);
+                    const scaleFactor = resultWidth / width;
+                    const resultHeight = Math.floor(height * scaleFactor);
+                    
+                    // Create a new ImageData object for the result
+                    const resultData = new ImageData(resultWidth, resultHeight);
+                    
+                    // Copy the processed data back
+                    for (let i = 0; i < resultWidth * resultHeight * 4; i++) {
+                        resultData.data[i] = heap[resultPtr + i];
+                    }
+                    
+                    // Free the allocated memory
+                    Module.free(inputPtr);
+                    Module.freeMemory(resultPtr);
+                    
+                    return resultData;
                 }
-            });
         </script>
     </body>
+
 </html>

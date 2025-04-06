@@ -1,0 +1,243 @@
+/**
+ * @file cgproc.cpp
+ * @author Jupiter Westbard
+ * @date 03/20/2025
+ * @brief circlegen processing implementations
+ */
+
+#include <iostream>
+#include <vector>
+#include <tuple>
+#include <cmath>
+#include <random>
+#include <algorithm>
+
+#include <Eigen/Core>
+#include "gdcpp.h"
+
+#include "circlegen.h"
+
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon);
+static void set_pixel(dpixel *pixel, double val);
+static double mag_factor(dpixel pixel);
+dpixmap sobelFilter(dpixmap pm);
+dpointlist samplePoints(dpixmap pm, int num, double threshold);
+dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold);
+std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
+
+bool equalCircles(const dcircle &lhs, const dcircle &rhs, double epsilon) { // for debugging
+    return abs(std::get<0>(lhs) - std::get<0>(rhs)) < epsilon &&
+           abs(std::get<1>(lhs) - std::get<1>(rhs)) < epsilon &&
+           abs(std::get<2>(lhs) - std::get<2>(rhs)) < epsilon;
+}
+
+static void set_pixel(dpixel *pixel, double val) {
+    pixel->R = val;
+    pixel->G = val;
+    pixel->B = val;
+}
+
+static double mag_factor(dpixel pixel) {
+    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
+    return (255.0 - mag) / 255.0;
+}
+
+struct CircleOptimization {
+    static dpixmap *dpm;
+    static dpointlist dpl;
+    static dcircle last;
+
+    CircleOptimization() { 
+        last = std::make_tuple(0.0, 0.0, 0.0);
+    }
+
+    static void initialize(dpointlist &points, dpixmap *pixmap) {
+        dpm = pixmap;
+        dpl = points;
+    }
+
+    double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
+        /* BREAKPOINT: first display circles, then update last */
+        // dcircle current_circle = std::make_tuple(params(0), params(1), params(2));
+        // dcircle last_circle = last;
+        // dpointlist current_pointlist = dpl;
+
+        // if (!equalCircles(current_circle, last_circle, 0.1)) {
+        //     breakpointSaveImage(dpm, current_pointlist, current_circle, last_circle);
+        //     getchar(); // wait for user input
+    
+        //     last = std::make_tuple(params(0), params(1), params(2));
+        // }
+
+        /* continue optimization */
+        double total_loss = 0.0;
+        double cx = params(0);
+        double cy = params(1);
+        double r = params(2);
+
+        int count = 0;
+        for (const auto &point : dpl) {
+            double x = std::get<0>(point);
+            double y = std::get<1>(point);
+            double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+            double dist_edge = std::abs(dist_center - r);
+            if (dist_edge < 150) {
+                ++count;
+                total_loss += dist_edge;
+            }
+        }
+
+        return total_loss / (double)count;
+    }
+};
+
+// Define static members of CircleOptimization
+dpixmap* CircleOptimization::dpm = nullptr;
+dpointlist CircleOptimization::dpl;
+dcircle CircleOptimization::last = std::make_tuple(0.0, 0.0, 0.0);
+
+dpixmap sobelFilter(dpixmap pm) {
+    dpixmap filtered = {pm.width, pm.height, new dpixel[pm.width * pm.height]};
+    int width = pm.width;
+    int height = pm.height;
+
+    // Sobel kernels
+    int Gx[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}
+    };
+    int Gy[3][3] = {
+        {1, 2, 1},
+        {0, 0, 0},
+        {-1, -2, -1}
+    };
+
+    for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+            int sumX = 0;
+            int sumY = 0;
+
+            for (int ky = -1; ky <= 1; ++ky) {
+                for (int kx = -1; kx <= 1; ++kx) {
+                    int pixelValue = pm.data[(y + ky) * width + (x + kx)].R;
+                    sumX += pixelValue * Gx[ky + 1][kx + 1];
+                    sumY += pixelValue * Gy[ky + 1][kx + 1];
+                }
+            }
+
+            int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
+            if (magnitude > 255) magnitude = 255;
+
+            set_pixel(&filtered.data[y * width + x], magnitude);
+        }
+    }
+
+    return filtered;
+}
+
+dpointlist samplePoints(dpixmap pm, int num, double threshold) {
+    dpointlist points;
+
+    for (int i = 0; i < (pm.width * pm.height); ++i) {
+        double mag = mag_factor(pm.data[i]);
+        if (mag < threshold) {
+            int x = i % pm.width;
+            int y = i / pm.width;
+            points.push_back(std::make_tuple(x, y));
+        }
+    }
+
+    // shuffle the points
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(points.begin(), points.end(), g);
+
+    // pick up to num points
+    if (points.size() > num) {
+        points.resize(num);
+    }
+    return points;
+}
+
+dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold) {
+    dpointlist trimmed;
+    double cx = std::get<0>(circle);
+    double cy = std::get<1>(circle);
+    double r = std::get<2>(circle);
+    
+    for (const auto &point : pointlist) {
+        double x = std::get<0>(point);
+        double y = std::get<1>(point);
+        double dist_center = std::sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
+        double dist_edge = std::abs(dist_center - r);
+        if (dist_edge > threshold) {
+            trimmed.push_back(point);
+        }
+    }
+    
+    return trimmed;
+}
+
+static gdc::GradientDescent<double, CircleOptimization,
+    gdc::BarzilaiBorwein<double>> makeOptimizer() {
+
+    gdc::GradientDescent<double, CircleOptimization,
+        gdc::BarzilaiBorwein<double>> optimizer;
+    
+    optimizer.setMaxIterations(40);
+    optimizer.setMinGradientLength(0.06);
+    optimizer.setMinStepLength(1e-9);
+    optimizer.setVerbosity(0);
+
+    return optimizer;
+}
+
+std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis;
+
+    std::vector<dcircle> circles;
+
+    int fail_count = 0;
+    while (true) {
+        if (circles.size() >= (unsigned)num || pointlist.size() <= 3 || fail_count > 100) {
+            return circles;
+        }
+        // pick 2 random points from pointlist
+        dis = std::uniform_int_distribution<int>(0, pointlist.size() - 1);
+        dpoint p1 = pointlist[dis(gen)];
+        dpoint p2 = pointlist[dis(gen)];
+
+        // p1 == center, p2 == edge
+        double cx = std::get<0>(p1);
+        double cy = std::get<1>(p1);
+        double r = std::sqrt((std::get<0>(p1) - std::get<0>(p2)) * (std::get<0>(p1) - std::get<0>(p2)) +
+                             (std::get<1>(p1) - std::get<1>(p2)) * (std::get<1>(p1) - std::get<1>(p2)));
+        
+        Eigen::VectorXd initialGuess(3);
+        initialGuess(0) = cx;
+        initialGuess(1) = cy;
+        initialGuess(2) = r;
+
+        auto opt = makeOptimizer();
+        CircleOptimization::initialize(pointlist, pm);
+        CircleOptimization circleOpt;
+        opt.setObjective(circleOpt);
+
+        auto result = opt.minimize(initialGuess);
+
+        if (result.fval && result.fval > 0) {
+            circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
+            dcircle &new_circle = circles.back();
+            pointlist = trimPointlist(pointlist, new_circle, 20);
+            std::cout << "Circle found." 
+                      << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
+                      << " Radius: " << std::get<2>(new_circle) << std::endl;
+            std::cout << "Num points left: " << pointlist.size() << std::endl;
+            fail_count = 0;
+        }
+        else { ++fail_count; }
+    }
+}
