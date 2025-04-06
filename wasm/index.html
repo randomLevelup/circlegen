@@ -117,10 +117,8 @@
                     inputCanvas.height = img.height;
                     inputCtx.drawImage(img, 0, 0);
                     
-                    // Enable generate button after image is loaded
                     generateBtn.disabled = false;
                     
-                    // Reset output canvas
                     outputCanvas.width = inputCanvas.width;
                     outputCanvas.height = inputCanvas.height;
                     outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
@@ -129,63 +127,53 @@
                 generateBtn.addEventListener('click', async () => {
                     if (!inputCtx || !WasmModule) return;
                     
-                    // Get image data from input canvas
                     imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
                     
-                    // Show processing indicator
                     generateBtn.disabled = true;
                     generateBtn.textContent = "Processing...";
                     
                     // Process the image in the next frame to allow UI update
                     setTimeout(async () => {
-                        // Process the image
                         const result = await processImage(imageData);
                         
-                        // Display on output canvas
                         outputCanvas.width = result.width;
                         outputCanvas.height = result.height;
                         outputCtx.putImageData(result, 0, 0);
                         
-                        // Reset button
                         generateBtn.textContent = "generate";
                         generateBtn.disabled = false;
                     }, 50);
                 });
             
                 async function processImage(imageData) {
-                    // Allocate memory in WASM for the input image
                     const width = imageData.width;
                     const height = imageData.height;
                     const numBytes = width * height * 4; // RGBA format
                     
-                    // Allocate memory in the WASM module
+                    // Allocate memory and get a heap pointer for the module
                     const inputPtr = WasmModule.malloc(numBytes);
-                    
-                    // Create a view into the WASM memory
                     const heap = new Uint8Array(WasmModule.memory.buffer);
                     
-                    // Copy the image data to WASM memory
+                    // Load image data
                     for (let i = 0; i < numBytes; i++) {
                         heap[inputPtr + i] = imageData.data[i];
                     }
                     
-                    // Call the WASM function to process the image
+                    // Process the image
                     const resultPtr = WasmModule._Z16processImageDataPcii(inputPtr, width, height);
                     
-                    // Get the dimensions of the processed image
+                    // Calculate output dimensions
                     const resultWidth = Math.min(width, 1000);
                     const scaleFactor = resultWidth / width;
                     const resultHeight = Math.floor(height * scaleFactor);
                     
-                    // Create a new ImageData object for the result
+                    // Store the result in an ImageData object
                     const resultData = new ImageData(resultWidth, resultHeight);
-                    
-                    // Copy the processed data back
                     for (let i = 0; i < resultWidth * resultHeight * 4; i++) {
                         resultData.data[i] = heap[resultPtr + i];
                     }
                     
-                    // Free the allocated memory
+                    // Free wasm memory
                     WasmModule.free(inputPtr);
                     WasmModule._Z13freeImageDataPh(resultPtr);
                     
