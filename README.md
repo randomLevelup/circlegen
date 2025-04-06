@@ -42,7 +42,7 @@ cd circlegen/wasm/src
 ```bash
 circlegen path/to.input.jpg
 ```
-I'm working on adding more arguments for better image customization. For now, if you want to change the number of circles, update the `generateCircles` call at line 40 of [main.cpp](/main.cpp) and rebuild.
+I'm working on adding more arguments for better image customization. For now, if you want to change the number of circles, update the `generateCircles` call at line 40 of [main.cpp](/main.cpp#L40) and rebuild.
 
 ### Web Interface
 
