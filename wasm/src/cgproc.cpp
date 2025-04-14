@@ -17,21 +17,24 @@
 
 #include "wasm_circlegen.h"
 
-static void set_pixel(dpixel *pixel, double val);
-static double mag_factor(dpixel pixel);
+static void set_pixel(uint8_t *pixel, uint8_t val);
+static double mag_factor(uint8_t *pixel);
 dpixmap sobelFilter(dpixmap pm);
 dpointlist samplePoints(dpixmap pm, int num, double threshold);
 dpointlist trimPointlist(dpointlist &pointlist, const dcircle &circle, int threshold);
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
 
-static void set_pixel(dpixel *pixel, double val) {
-    pixel->R = val;
-    pixel->G = val;
-    pixel->B = val;
+static void set_pixel(uint8_t *pixel, uint8_t val) {
+    *pixel = val;
+    *(pixel + 1) = val;
+    *(pixel + 2) = val;
 }
 
-static double mag_factor(dpixel pixel) {
-    double mag = sqrt(pixel.R * pixel.R + pixel.G * pixel.G + pixel.B * pixel.B);
+static double mag_factor(uint8_t *pixel) {
+    int r = *pixel;
+    int g = *(pixel + 1);
+    int b = *(pixel + 2);
+    double mag = sqrt(r * r + g * g + b * b);
     return (255.0 - mag) / 255.0;
 }
 
@@ -90,7 +93,7 @@ dpointlist CircleOptimization::dpl;
 dcircle CircleOptimization::last = std::make_tuple(0.0, 0.0, 0.0);
 
 dpixmap sobelFilter(dpixmap pm) {
-    dpixmap filtered = {pm.width, pm.height, new dpixel[pm.width * pm.height]};
+    dpixmap filtered = {pm.width, pm.height, new uint8_t[pm.width * pm.height * 3]};
     int width = pm.width;
     int height = pm.height;
 
@@ -113,27 +116,27 @@ dpixmap sobelFilter(dpixmap pm) {
 
             for (int ky = -1; ky <= 1; ++ky) {
                 for (int kx = -1; kx <= 1; ++kx) {
-                    int pixelValue = pm.data[(y + ky) * width + (x + kx)].R;
+                    int pixelValue = pm.data[((y + ky) * width + (x + kx)) * 3];
                     sumX += pixelValue * Gx[ky + 1][kx + 1];
                     sumY += pixelValue * Gy[ky + 1][kx + 1];
                 }
             }
 
-            int magnitude = static_cast<int>(std::sqrt(sumX * sumX + sumY * sumY));
+            uint8_t magnitude = static_cast<uint8_t>(std::sqrt(sumX * sumX + sumY * sumY));
             if (magnitude > 255) magnitude = 255;
 
-            set_pixel(&filtered.data[y * width + x], magnitude);
+            set_pixel(&filtered.data[(y * width + x) * 3], magnitude);
         }
     }
 
     return filtered;
 }
 
-dpointlist samplePoints(dpixmap pm, int num, double threshold) {
+dpointlist samplePoints(dpixmap pm, size_t num, double threshold) {
     dpointlist points;
 
     for (int i = 0; i < (pm.width * pm.height); ++i) {
-        double mag = mag_factor(pm.data[i]);
+        double mag = mag_factor(pm.data + (i * 3));
         if (mag < threshold) {
             int x = i % pm.width;
             int y = i / pm.width;

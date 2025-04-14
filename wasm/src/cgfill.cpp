@@ -30,21 +30,21 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
             int index = y * pm.width + x;
-            uint8_t r = pm.data[index].R;
-            uint8_t g = pm.data[index].G;
-            uint8_t b = pm.data[index].B;
+            uint8_t r = pm.data[index];
+            uint8_t g = pm.data[index + 1];
+            uint8_t b = pm.data[index + 2];
 
             // a pixel's hash key is a n bit number with each bit representing containment in a circle.
             uint32_t key = 0;
-            for (int i = 0; i < circles.size(); ++i) {
+            for (size_t i = 0; i < circles.size(); ++i) {
                 float px = static_cast<float>(x);
                 float py = static_cast<float>(y);
                 float cx = std::get<0>(circles[i]);
                 float cy = std::get<1>(circles[i]);
-                float r = std::get<2>(circles[i]);
+                float cr = std::get<2>(circles[i]);
                 float dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
-                if (dist < r) {
-                    key |= 1 << i;
+                if (dist < cr) {
+                    key |= 1 << static_cast<uint32_t>(i);
                 }
             }
 
@@ -102,13 +102,16 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
     dpixmap res;
     res.width = pm.width;
     res.height = pm.height;
-    res.data = new dpixel[pm.width * pm.height];
+    res.data = new uint8_t[pm.width * pm.height * 3];
 
     for (auto &key : ogroup.keys) {
         for (auto &pixel : ogroup.table[key]) {
-            res.data[pixel.idx].R = pixel.rgb[0];
-            res.data[pixel.idx].G = pixel.rgb[1];
-            res.data[pixel.idx].B = pixel.rgb[2];
+            // res.data[pixel.idx].R = pixel.rgb[0];
+            // res.data[pixel.idx].G = pixel.rgb[1];
+            // res.data[pixel.idx].B = pixel.rgb[2];
+            res.data[pixel.idx] = pixel.rgb[0];
+            res.data[pixel.idx + 1] = pixel.rgb[1];
+            res.data[pixel.idx + 2] = pixel.rgb[2];
         }
     }
     return res;

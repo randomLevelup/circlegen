@@ -7,25 +7,28 @@
 
 #include <tuple>
 #include <vector>
+#include <cstdint>
 
 #ifndef WASM_CIRCLEGEN_H
 #define WASM_CIRCLEGEN_H
 
-struct dpixel {
-    int R;
-    int G;
-    int B;
-}; typedef struct dpixel dpixel;
+// struct dpixel {
+//     uint8_t R;
+//     uint8_t G;
+//     uint8_t B;
+// }; typedef struct dpixel dpixel;
 
 struct dpixmap {
     int width;
     int height;
-    dpixel *data;
+    uint8_t *data;
 }; typedef struct dpixmap dpixmap;
 
 typedef std::tuple<int, int> dpoint;
 typedef std::vector<dpoint> dpointlist;
 typedef std::tuple<double, double, double> dcircle;
+
+void formatAlpha(dpixmap *pm);
 
 /**
  * @brief Apply a jittered sampling to the image
@@ -38,7 +41,7 @@ void jitteredResample(dpixmap *pm, int new_width, double jitter);
 
 dpixmap sobelFilter(dpixmap pm);
 
-dpointlist samplePoints(dpixmap pm, int num, double threshold);
+dpointlist samplePoints(dpixmap pm, size_t num, double threshold);
 
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
 
