@@ -100,19 +100,28 @@
             outputCanvas.width = img.width;
             outputCanvas.height = img.height;
             outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+            // Clear cached imageData to ensure fresh processing
+            imageData = null;
           });
 
           generateBtn.addEventListener('click', () => {
-            if (!imageData && inputCtx) imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
+            // Refresh imageData from current canvas state
+            imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
             generateBtn.disabled = true;
             generateBtn.textContent = 'Processing...';
             setTimeout(async () => {
-              const result = await processImage(imageData);
-              outputCanvas.width = result.width;
-              outputCanvas.height = result.height;
-              outputCtx.putImageData(result, 0, 0);
-              generateBtn.textContent = 'generate';
-              generateBtn.disabled = false;
+              try {
+                const result = await processImage(imageData);
+                outputCanvas.width = result.width;
+                outputCanvas.height = result.height;
+                outputCtx.putImageData(result, 0, 0);
+              } catch (error) {
+                console.error('Error processing image:', error);
+                alert('Error processing image. Please try again.');
+              } finally {
+                generateBtn.textContent = 'generate';
+                generateBtn.disabled = false;
+              }
             }, 50);
           });
 
@@ -126,17 +135,27 @@
             const width = imageData.width;
             const height = imageData.height;
             const numBytes = width * height * 4;
+            
+            // Allocate memory in WASM heap
             const inputPtr = WasmModule._malloc(numBytes);
-            const heap = new Uint8Array(WasmModule.HEAPU8.buffer);
-            heap.set(imageData.data, inputPtr);
+            
+            // Copy data to WASM heap
+            WasmModule.HEAPU8.set(imageData.data, inputPtr);
+            
             const resultPtr = WasmModule._processImageData(inputPtr, width, height);
-            const resultWidth = Math.min(width, 1000);
-            const resultHeight = Math.floor(height * (resultWidth / width));
+            
+            const resultWidth = WasmModule._getOutputWidth();
+            const resultHeight = WasmModule._getOutputHeight();
             const resultNumBytes = resultWidth * resultHeight * 4;
+            
+            // Create ImageData and copy result
             const resultData = new ImageData(resultWidth, resultHeight);
-            const resultView = new Uint8ClampedArray(WasmModule.HEAPU8.buffer, resultPtr, resultNumBytes);
+            const resultView = new Uint8Array(WasmModule.HEAPU8.buffer, resultPtr, resultNumBytes);
             resultData.data.set(resultView);
+            
+            // Free WASM memory
             WasmModule._freeImageData(resultPtr);
+            
             return resultData;
           }
         </script>

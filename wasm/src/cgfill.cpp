@@ -29,12 +29,13 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
 
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
-            int index = y * pm.width + x;
-            uint8_t r = pm.data[index];
-            uint8_t g = pm.data[index + 1];
-            uint8_t b = pm.data[index + 2];
+            int pixel_idx = y * pm.width + x;  // Linear pixel index
+            int rgb_idx = pixel_idx * 3;       // RGB byte index
+            uint8_t r = pm.data[rgb_idx];
+            uint8_t g = pm.data[rgb_idx + 1];
+            uint8_t b = pm.data[rgb_idx + 2];
 
-            // a pixel's hash key is a n bit number with each bit representing containment in a circle.
+            // a pixel's hash key is a 32 bit field with each bit representing containment in a circle.
             uint32_t key = 0;
             for (size_t i = 0; i < circles.size(); ++i) {
                 float px = static_cast<float>(x);
@@ -44,12 +45,12 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
                 float cr = std::get<2>(circles[i]);
                 float dist = std::sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
                 if (dist < cr) {
-                    key |= 1 << static_cast<uint32_t>(i);
+                    key |= 1U << i;
                 }
             }
 
             // create the new dpixel and add it to the hash table
-            dpixelidx pixel = {{r, g, b}, index};
+            dpixelidx pixel = {{r, g, b}, pixel_idx};
             if (ogroup.table.find(key) == ogroup.table.end()) { // group not found
                 ogroup.keys.push_back(key);
                 ogroup.table[key] = std::vector<dpixelidx>();
@@ -106,12 +107,11 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
 
     for (auto &key : ogroup.keys) {
         for (auto &pixel : ogroup.table[key]) {
-            // res.data[pixel.idx].R = pixel.rgb[0];
-            // res.data[pixel.idx].G = pixel.rgb[1];
-            // res.data[pixel.idx].B = pixel.rgb[2];
-            res.data[pixel.idx] = pixel.rgb[0];
-            res.data[pixel.idx + 1] = pixel.rgb[1];
-            res.data[pixel.idx + 2] = pixel.rgb[2];
+            // Convert linear pixel index to RGB byte index
+            int rgb_idx = pixel.idx * 3;
+            res.data[rgb_idx] = pixel.rgb[0];
+            res.data[rgb_idx + 1] = pixel.rgb[1];
+            res.data[rgb_idx + 2] = pixel.rgb[2];
         }
     }
     return res;

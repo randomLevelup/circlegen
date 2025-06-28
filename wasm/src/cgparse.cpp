@@ -9,6 +9,9 @@
 
 #include <iostream>
 #include <random>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 
 void formatAlpha(dpixmap *pm) {
     // remove alpha channel (will resize the data array)
@@ -23,8 +26,8 @@ void formatAlpha(dpixmap *pm) {
         new_data[i * 3 + 2] = data[i * 4 + 2]; // B
     }
 
-    // Free the input data buffer (passed via pm->data)
-    delete[] data;
+    // Use free instead of delete[] for malloc'd buffers from JavaScript
+    free(data);
     // Update the pixmap to point to the new data buffer
     pm->data = new_data;
 }
