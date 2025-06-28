@@ -38,10 +38,26 @@
             input[type="file"] {
                 display: none;
             }
+            .back-nav {
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                background: #333;
+                color: white;
+                padding: 10px 15px;
+                text-decoration: none;
+                border-radius: 5px;
+                font-family: 'Roboto Mono', monospace;
+                transition: background 0.3s;
+            }
+            .back-nav:hover {
+                background: #555;
+            }
         </style>
     </head>
 
     <body>
+        <a href="../../index.html" class="back-nav">← Back to Portfolio</a>
         <h1><b>Circlegen</b></h1>
         
         <table>
@@ -63,7 +79,7 @@
         </div>
 
         <script type="module">
-          import Module from './circlegen.js';
+          import Module from './wasm/circlegen.js';
 
           // DOM elements
           const fileInput = document.getElementById('file-input');
@@ -81,7 +97,7 @@
           // Initialize WASM module as ES6 module
           (async () => {
             WasmModule = await Module({
-              locateFile: path => path.endsWith('.wasm') ? 'circlegen.wasm' : path
+              locateFile: path => path.endsWith('.wasm') ? 'wasm/circlegen.wasm' : path
             });
             console.log('WASM module loaded');
             testPrintfBtn.disabled = false;
