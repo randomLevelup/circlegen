@@ -3,8 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';">
         <title>Circlegen</title>
-        
         <style>
             h1 {
                 text-align: center;
@@ -39,7 +39,6 @@
                 display: none;
             }
         </style>
-        <script src="circlegen.js"></script>
     </head>
 
     <body>
@@ -63,269 +62,83 @@
             <button id="test-printf-btn">Test Printf</button> <!-- Add test button -->
         </div>
 
-        <script>
-            const fileInput = document.getElementById('file-input');
-            const uploadBtn = document.getElementById('upload-btn');
-            const generateBtn = document.getElementById('generate-btn');
-            const testPrintfBtn = document.getElementById('test-printf-btn'); // Get test button
-            const inputCanvas = document.getElementById('input-canvas');
-            const outputCanvas = document.getElementById('output-canvas');
-            let inputCtx = inputCanvas.getContext('2d');
-            let outputCtx = outputCanvas.getContext('2d');
-            let imageData = null;
-            let WasmModule = null;
+        <script type="module">
+          import Module from './circlegen.js';
 
-            var mem = new WebAssembly.Memory({ initial: 1024, maximum: 2048 });
-            let fdOffsets = { 0: 0, 1: 0, 2: 0 }; // track offsets per FD
+          // DOM elements
+          const fileInput = document.getElementById('file-input');
+          const uploadBtn = document.getElementById('upload-btn');
+          const generateBtn = document.getElementById('generate-btn');
+          const testPrintfBtn = document.getElementById('test-printf-btn');
+          const inputCanvas = document.getElementById('input-canvas');
+          const outputCanvas = document.getElementById('output-canvas');
+          const inputCtx = inputCanvas.getContext('2d');
+          const outputCtx = outputCanvas.getContext('2d');
 
-            // load WASM module
-            fetch('circlegen.wasm')
-                .then(response => response.arrayBuffer())
-                .then(buffer => WebAssembly.instantiate(buffer, {
-                    env: {
-                        memory: mem,
-                        emscripten_resize_heap: function(delta) { 
-                            console.log("Growing memory by " + delta + " pages");
-                            mem.grow(delta); 
-                        },
-                        _abort_js: function() { console.log("Abort called"); },
-                        _tzset_js: function() { console.log("tzset called"); },
-                        __assert_fail: function() { console.log("Assert failed"); },
-                        __cxa_throw: function() { console.log("CXAbort called"); },
-                        // Add specific print handling
-                        _printChar: function(charCode) {
-                            console.log(String.fromCharCode(charCode));
-                        },
-                        _printString: function(ptr) {
-                            const heap = new Uint8Array(mem.buffer);
-                            let str = "";
-                            let i = ptr;
-                            while (heap[i] !== 0) {
-                                str += String.fromCharCode(heap[i]);
-                                i++;
-                            }
-                            console.log(str);
-                        }
-                    },
-                    wasi_snapshot_preview1: {
-                        fd_read: function(fd, iovs, iovsLen, nread) {
-                            const view = new DataView(mem.buffer);
-                            // No data to read, return 0 bytes read
-                            view.setUint32(nread, 0, true);
-                            view.setUint32(nread + 4, 0, true);
-                            return 0;
-                        },
-                        fd_write: function(fd, iovs, iovsLen, nwritten) {
-                            let view = new DataView(mem.buffer);
-                            let bytesWritten = 0;
-                            let outputText = "";
-                            // console.log(`[JS] fd_write called for fd=${fd}, iovsLen=${iovsLen}`); // Debug log
+          let imageData = null;
+          let WasmModule = null;
 
-                            for (let i = 0; i < iovsLen; i++) {
-                                const ptr = view.getUint32(iovs + i * 8, true);
-                                const len = view.getUint32(iovs + i * 8 + 4, true);
-                                // console.log(`[JS] fd_write: iov ${i}, ptr=${ptr}, len=${len}`); // Debug log
+          // Initialize WASM module as ES6 module
+          (async () => {
+            WasmModule = await Module({
+              locateFile: path => path.endsWith('.wasm') ? 'circlegen.wasm' : path
+            });
+            console.log('WASM module loaded');
+            testPrintfBtn.disabled = false;
+          })();
 
-                                if (len > 0) {
-                                    try {
-                                        // console.log(`[JS] fd_write: Reading ${len} bytes from ptr=${ptr}`); // Debug log
-                                        const bytes = new Uint8Array(mem.buffer, ptr, len);
-                                        // console.log("[JS] fd_write: Decoding bytes:", bytes); // Debug log raw bytes
-                                        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); // Use fatal: true to catch decoding errors
-                                        // console.log(`[JS] fd_write: Decoded text chunk: "${text}"`); // Debug log decoded chunk
-                                        outputText += text;
-                                        bytesWritten += len;
-                                    } catch (e) {
-                                        console.error(`[JS] fd_write: Error decoding bytes at ptr=${ptr}, len=${len}`, e);
-                                        // Optionally log the raw bytes that failed decoding
-                                        try {
-                                            const rawBytes = new Uint8Array(mem.buffer, ptr, len);
-                                            console.error("[JS] fd_write: Raw bytes causing error:", rawBytes);
-                                        } catch (innerErr) {
-                                            console.error("[JS] fd_write: Error reading raw bytes for error reporting", innerErr);
-                                        }
-                                        // Still count bytes written even if decoding fails, as WASI expects it
-                                        bytesWritten += len;
-                                    }
-                                }
-                            }
+          uploadBtn.addEventListener('click', () => fileInput.click());
 
-                            if (outputText.length > 0) { // Log accumulated text if any was successfully decoded
-                                if (fd === 1) { // stdout
-                                    console.log("stdout:", outputText);
-                                } else if (fd === 2) { // stderr
-                                    console.error("stderr:", outputText);
-                                }
-                            } else if (bytesWritten > 0) {
-                                // Log if bytes were written but nothing could be decoded (e.g., only errors occurred)
-                                // console.log(`[JS] fd_write: Wrote ${bytesWritten} bytes to fd=${fd}, but no text decoded.`);
-                            }
+          fileInput.addEventListener('change', async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const img = await createImageBitmap(file);
+            inputCanvas.width = img.width;
+            inputCanvas.height = img.height;
+            inputCtx.drawImage(img, 0, 0);
+            generateBtn.disabled = false;
+            outputCanvas.width = img.width;
+            outputCanvas.height = img.height;
+            outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+          });
 
-                            fdOffsets[fd] = (fdOffsets[fd] || 0) + bytesWritten;
-                            view = new DataView(mem.buffer); // Re-get view in case memory grew
-                            view.setUint32(nwritten, bytesWritten, true);
-                            view.setUint32(nwritten + 4, 0, true);
-                            // console.log(`[JS] fd_write completed for fd=${fd}, wrote ${bytesWritten} bytes.`); // Debug log
-                            return 0;
-                        },
-                        fd_seek: function(fd, offset_low, offset_high, whence, newOffset) {
-                            let offset = fdOffsets[fd] || 0;
-                            if (whence === 0) { // SEEK_SET
-                                offset = offset_low;
-                            } else if (whence === 1) { // SEEK_CUR
-                                offset += offset_low;
-                            } else if (whence === 2) { // SEEK_END
-                                offset += offset_low; 
-                            }
-                            fdOffsets[fd] = offset;
-                            const view = new DataView(mem.buffer);
-                            view.setUint32(newOffset, offset, true);
-                            view.setUint32(newOffset + 4, 0, true);
-                            return 0;
-                        },
-                        fd_close: function(fd) {
-                            return 0;
-                        },
-                        environ_sizes_get: function(environCount, environBufSize) {
-                            const view = new DataView(mem.buffer);
-                            view.setUint32(environCount, 0, true);
-                            view.setUint32(environBufSize, 0, true);
-                            return 0;
-                        },
-                        environ_get: function(environ, environBuf) {
-                            return 0;
-                        },
-                        random_get: function(buf, bufLen) {
-                            const bytes = new Uint8Array(mem.buffer);
-                            const randomBytes = new Uint8Array(bufLen);
-                            crypto.getRandomValues(randomBytes);
-                            bytes.set(randomBytes, buf);
-                            return 0;
-                        },
-                    }
-                }))
-                .then(result => {
-                    WasmModule = result.instance.exports;
-                    console.log('WASM module loaded');
-                    testPrintfBtn.disabled = false; // Enable test button when module is loaded
-                })
-                .catch(err => console.error('Error loading WASM module:', err));
+          generateBtn.addEventListener('click', () => {
+            if (!imageData && inputCtx) imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Processing...';
+            setTimeout(async () => {
+              const result = await processImage(imageData);
+              outputCanvas.width = result.width;
+              outputCanvas.height = result.height;
+              outputCtx.putImageData(result, 0, 0);
+              generateBtn.textContent = 'generate';
+              generateBtn.disabled = false;
+            }, 50);
+          });
 
+          testPrintfBtn.addEventListener('click', () => {
+            if (WasmModule && WasmModule._testPrintf) {
+              WasmModule._testPrintf();
+            }
+          });
 
-                uploadBtn.addEventListener('click', () => {
-                    fileInput.click();
-                });
-                
-                fileInput.addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    
-                    const img = await createImageBitmap(file);
-                    inputCanvas.width = img.width;
-                    inputCanvas.height = img.height;
-                    inputCtx.drawImage(img, 0, 0);
-                    
-                    generateBtn.disabled = false;
-                    
-                    outputCanvas.width = inputCanvas.width;
-                    outputCanvas.height = inputCanvas.height;
-                    outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
-                });
-                
-                generateBtn.addEventListener('click', async () => {
-                    if (!inputCtx || !WasmModule) return;
-                    
-                    imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
-                    
-                    generateBtn.disabled = true;
-                    generateBtn.textContent = "Processing...";
-                    
-                    // Process the image in the next frame to allow UI update
-                    setTimeout(async () => {
-                        const result = await processImage(imageData);
-                        
-                        outputCanvas.width = result.width;
-                        outputCanvas.height = result.height;
-                        outputCtx.putImageData(result, 0, 0);
-                        
-                        generateBtn.textContent = "generate";
-                        generateBtn.disabled = false;
-                    }, 50);
-                });
-            
-                async function processImage(imageData) {
-                    console.log(`[JS] processImage started. Input dimensions: ${imageData.width}x${imageData.height}`);
-                    const width = imageData.width;
-                    const height = imageData.height;
-                    const numBytes = width * height * 4; // RGBA format
-                    console.log(`[JS] Input bytes: ${numBytes}`);
-
-                    // Allocate memory and get a heap pointer for the module
-                    const inputPtr = WasmModule.malloc(numBytes);
-                    console.log(`[JS] Allocated ${numBytes} bytes at inputPtr: ${inputPtr}`);
-                    if (inputPtr === 0) {
-                        console.error("[JS] Failed to allocate memory for input image.");
-                        return null; // Or handle error appropriately
-                    }
-                    const heap = new Uint8Array(WasmModule.memory.buffer);
-
-                    // Load image data into WASM heap
-                    console.log(`[JS] Copying ${imageData.data.length} bytes to heap at ${inputPtr}`);
-                    heap.set(imageData.data, inputPtr);
-                    console.log("[JS] Copied input data to WASM heap.");
-
-                    // Process the image - Use correct mangled name
-                    console.log(`[JS] Calling WASM function _Z16processImageDataPhii with ptr: ${inputPtr}, width: ${width}, height: ${height}`);
-                    const resultPtr = WasmModule._Z16processImageDataPhii(inputPtr, width, height);
-                    console.log(`[JS] WASM function returned resultPtr: ${resultPtr}`);
-                    if (resultPtr === 0) {
-                        console.error("[JS] WASM function returned null pointer.");
-                         WasmModule.free(inputPtr); // Free input buffer even if processing failed
-                        return null; // Or handle error appropriately
-                    }
-
-                    // Calculate output dimensions based on resampling logic (max width 1000)
-                    const resultWidth = Math.min(width, 1000);
-                    const scaleFactor = resultWidth / width;
-                    const resultHeight = Math.floor(height * scaleFactor);
-                    const resultNumBytes = resultWidth * resultHeight * 4; // Expect RGBA
-                    console.log(`[JS] Calculated output dimensions: ${resultWidth}x${resultHeight}, bytes: ${resultNumBytes}`);
-
-                    // Create ImageData for the result
-                    console.log(`[JS] Creating ImageData object ${resultWidth}x${resultHeight}`);
-                    const resultData = new ImageData(resultWidth, resultHeight);
-                    // Read the RGBA result data directly from the WASM heap
-                    console.log(`[JS] Reading ${resultNumBytes} bytes from heap at ${resultPtr}`);
-                    const resultView = new Uint8ClampedArray(WasmModule.memory.buffer, resultPtr, resultNumBytes);
-                    resultData.data.set(resultView);
-                    console.log("[JS] Copied result data from WASM heap.");
-
-                    // Free wasm memory
-                    console.log(`[JS] Freeing inputPtr: ${inputPtr}`);
-                    WasmModule.free(inputPtr); // Free the initial buffer passed to C++
-                    console.log(`[JS] Freeing resultPtr: ${resultPtr} using _Z13freeImageDataPh`);
-                    // Free the result buffer returned by C++ - Use correct mangled name
-                    WasmModule._Z13freeImageDataPh(resultPtr);
-                    console.log("[JS] Freed WASM memory.");
-
-                    console.log("[JS] processImage finished.");
-                    return resultData;
-                }
-
-                testPrintfBtn.addEventListener('click', () => { // Add listener for test button
-                    if (WasmModule && WasmModule.testPrintf) {
-                        console.log("[JS] Calling WasmModule._testPrintf()...");
-                        try {
-                            WasmModule.testPrintf();
-                            console.log("[JS] WasmModule._testPrintf() finished.");
-                        } catch (e) {
-                            console.error("[JS] Error calling WasmModule._testPrintf():", e);
-                        }
-                    } else {
-                        console.error("[JS] WasmModule or _testPrintf not available.");
-                    }
-                });
-                testPrintfBtn.disabled = true; // Initially disable test button
+          async function processImage(imageData) {
+            const width = imageData.width;
+            const height = imageData.height;
+            const numBytes = width * height * 4;
+            const inputPtr = WasmModule._malloc(numBytes);
+            const heap = new Uint8Array(WasmModule.HEAPU8.buffer);
+            heap.set(imageData.data, inputPtr);
+            const resultPtr = WasmModule._processImageData(inputPtr, width, height);
+            const resultWidth = Math.min(width, 1000);
+            const resultHeight = Math.floor(height * (resultWidth / width));
+            const resultNumBytes = resultWidth * resultHeight * 4;
+            const resultData = new ImageData(resultWidth, resultHeight);
+            const resultView = new Uint8ClampedArray(WasmModule.HEAPU8.buffer, resultPtr, resultNumBytes);
+            resultData.data.set(resultView);
+            WasmModule._freeImageData(resultPtr);
+            return resultData;
+          }
         </script>
     </body>
 

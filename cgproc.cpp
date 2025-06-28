@@ -108,8 +108,8 @@ dpixmap sobelFilter(dpixmap pm) {
         {-1, 0, 1}
     };
     int Gy[3][3] = {
-        {1, 2, 1},
-        {0, 0, 0},
+        { 1,  2,  1},
+        { 0,  0,  0},
         {-1, -2, -1}
     };
 
@@ -202,7 +202,7 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
 
     int fail_count = 0;
     while (true) {
-        if (circles.size() >= (unsigned)num || pointlist.size() <= 3 || fail_count > 100) {
+        if (circles.size() >= num || pointlist.size() <= 3 || fail_count > 100) {
             return circles;
         }
         // pick 2 random points from pointlist

@@ -11,7 +11,7 @@ extern "C" void testPrintf() {
 }
 
 EMSCRIPTEN_KEEPALIVE
-uint8_t *processImageData(uint8_t *data, int width, int height) {
+extern "C" uint8_t *processImageData(uint8_t *data, int width, int height) {
     // Test printf output at the start
     fprintf(stdout, "Starting image processing...\n");
     fflush(stdout);
@@ -33,10 +33,13 @@ uint8_t *processImageData(uint8_t *data, int width, int height) {
     formatAlpha(&inputPm); // Frees original 'data', inputPm.data points to new RGB buffer
 
     printf("Running filters [dither]...\n"); fflush(stdout);
-    // Resamples, frees buffer from formatAlpha, inputPm.data points to new resampled RGB buffer
-    jitteredResample(&inputPm, std::min(1000, width), 0.75);
+    // Create a copy for resampling, so the original inputPm is preserved for color quantization.
+    dpixmap resampledPm = inputPm;
+    resampledPm.data = nullptr; // Avoids double-freeing the original data pointer
+    jitteredResample(&resampledPm, width, 0.75);
+
     printf("Running filters [sobel]...\n"); fflush(stdout);
-    dpixmap filtered = sobelFilter(inputPm); // Allocates filtered.data
+    dpixmap filtered = sobelFilter(resampledPm); // Allocates filtered.data
     printf("Filtering complete\n\n"); fflush(stdout);
 
     printf("Sampling points...\n"); fflush(stdout);
@@ -44,7 +47,7 @@ uint8_t *processImageData(uint8_t *data, int width, int height) {
     printf("Sampling done\n\n"); fflush(stdout);
 
     printf("Generating circles...\n"); fflush(stdout);
-    std::vector<dcircle> circles = generateCircles(points, &inputPm, 6);
+    std::vector<dcircle> circles = generateCircles(points, &resampledPm, 6);
     printf("Circle generation done\n\n"); fflush(stdout);
 
     printf("Quantizing colors...\n"); fflush(stdout);
@@ -68,7 +71,7 @@ uint8_t *processImageData(uint8_t *data, int width, int height) {
     }
 
     // Free intermediate buffers
-    delete[] inputPm.data;   // Free the buffer allocated by jitteredResample
+    delete[] resampledPm.data; // Free the buffer allocated by jitteredResample
     delete[] filtered.data;  // Free the buffer allocated by sobelFilter
     delete[] outputPm.data;  // Free the buffer allocated by quantizeColors
 
@@ -78,7 +81,7 @@ uint8_t *processImageData(uint8_t *data, int width, int height) {
 }
 
 EMSCRIPTEN_KEEPALIVE
-void freeImageData(uint8_t *data) {
+extern "C" void freeImageData(uint8_t *data) {
     // Free the buffer allocated by processImageData and returned to JS
     delete[] data;
 }
