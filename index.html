@@ -31,6 +31,10 @@
             button {
                 margin: 0 10px;
                 padding: 8px 16px;
+                font-family: 'Roboto Mono', monospace;
+            }
+            label {
+                font-family: 'Roboto Mono', monospace;
             }
             canvas {
                 display: block;
@@ -44,12 +48,13 @@
             }
             input[type="file"] {
                 display: none;
+                font-family: 'Roboto Mono', monospace;
             }
             .back-nav {
                 position: fixed;
                 top: 20px;
                 left: 20px;
-                background: #333;
+                background: #b9b9b9;
                 color: white;
                 padding: 10px 15px;
                 text-decoration: none;
@@ -64,7 +69,7 @@
     </head>
 
     <body>
-        <a href="../../index.html" class="back-nav">← Back to Portfolio</a>
+        <a href="../../index.html#portfolio" class="back-nav">← Back to Portfolio</a>
         <h1><b>Circle Thing</b></h1>
         
         <table>
@@ -84,7 +89,7 @@
             <div style="margin-bottom: 15px; font-family: sans-serif;">
                 <label for="circles-input"># circles: </label>
                 <input type="number" id="circles-input" min="1" max="30" value="7" style="width: 60px;">
-                <label for="lines-checkbox" style="margin-left: 20px;">lines: </label>
+                <label for="lines-checkbox" style="margin-left: 20px;">lines:</label>
                 <input type="checkbox" id="lines-checkbox" checked>
             </div>
             <input type="file" id="file-input" accept="image/*">
