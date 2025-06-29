@@ -4,10 +4,17 @@
         <meta charset="utf-8">
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';">
-        <title>Circlegen</title>
+        <title>Circle Thing</title>
         <style>
+            @font-face {
+                font-family: 'DotMatrix';
+                src: url('resource/DOTMATRI.TTF') format('truetype');
+            }
             h1 {
                 text-align: center;
+                font-family: 'DotMatrix', monospace;
+                font-weight: 1;
+                font-size: 4em;
             }
             table {
                 border-collapse: collapse;
@@ -58,13 +65,15 @@
 
     <body>
         <a href="../../index.html" class="back-nav">← Back to Portfolio</a>
-        <h1><b>Circlegen</b></h1>
+        <h1><b>Circle Thing</b></h1>
         
         <table>
             <tr>
                 <td>
                     <canvas id="input-canvas"></canvas>
                 </td>
+            </tr>
+            <tr>
                 <td>
                     <canvas id="output-canvas"></canvas>
                 </td>
@@ -72,10 +81,15 @@
         </table>
         
         <div class="button-container">
+            <div style="margin-bottom: 15px; font-family: sans-serif;">
+                <label for="circles-input"># circles: </label>
+                <input type="number" id="circles-input" min="1" max="30" value="7" style="width: 60px;">
+                <label for="lines-checkbox" style="margin-left: 20px;">lines: </label>
+                <input type="checkbox" id="lines-checkbox" checked>
+            </div>
             <input type="file" id="file-input" accept="image/*">
             <button id="upload-btn">upload image</button>
             <button id="generate-btn" disabled>generate</button>
-            <button id="test-printf-btn">Test Printf</button> <!-- Add test button -->
         </div>
 
         <script type="module">
@@ -85,11 +99,12 @@
           const fileInput = document.getElementById('file-input');
           const uploadBtn = document.getElementById('upload-btn');
           const generateBtn = document.getElementById('generate-btn');
-          const testPrintfBtn = document.getElementById('test-printf-btn');
+          const circlesInput = document.getElementById('circles-input');
+          const linesCheckbox = document.getElementById('lines-checkbox');
           const inputCanvas = document.getElementById('input-canvas');
           const outputCanvas = document.getElementById('output-canvas');
-          const inputCtx = inputCanvas.getContext('2d');
-          const outputCtx = outputCanvas.getContext('2d');
+          const inputCtx = inputCanvas.getContext('2d', { willReadFrequently: true });
+          const outputCtx = outputCanvas.getContext('2d', { willReadFrequently: true });
 
           let imageData = null;
           let WasmModule = null;
@@ -100,7 +115,6 @@
               locateFile: path => path.endsWith('.wasm') ? 'wasm/circlegen.wasm' : path
             });
             console.log('WASM module loaded');
-            testPrintfBtn.disabled = false;
           })();
 
           uploadBtn.addEventListener('click', () => fileInput.click());
@@ -123,11 +137,13 @@
           generateBtn.addEventListener('click', () => {
             // Refresh imageData from current canvas state
             imageData = inputCtx.getImageData(0, 0, inputCanvas.width, inputCanvas.height);
+            const numCircles = parseInt(circlesInput.value) || 7;
+            const drawLines = linesCheckbox.checked;
             generateBtn.disabled = true;
             generateBtn.textContent = 'Processing...';
             setTimeout(async () => {
               try {
-                const result = await processImage(imageData);
+                const result = await processImage(imageData, numCircles, drawLines);
                 outputCanvas.width = result.width;
                 outputCanvas.height = result.height;
                 outputCtx.putImageData(result, 0, 0);
@@ -141,13 +157,7 @@
             }, 50);
           });
 
-          testPrintfBtn.addEventListener('click', () => {
-            if (WasmModule && WasmModule._testPrintf) {
-              WasmModule._testPrintf();
-            }
-          });
-
-          async function processImage(imageData) {
+          async function processImage(imageData, numCircles, drawLines) {
             const width = imageData.width;
             const height = imageData.height;
             const numBytes = width * height * 4;
@@ -158,7 +168,7 @@
             // Copy data to WASM heap
             WasmModule.HEAPU8.set(imageData.data, inputPtr);
             
-            const resultPtr = WasmModule._processImageData(inputPtr, width, height);
+            const resultPtr = WasmModule._processImageData(inputPtr, width, height, numCircles, drawLines ? 1 : 0);
             
             const resultWidth = WasmModule._getOutputWidth();
             const resultHeight = WasmModule._getOutputHeight();

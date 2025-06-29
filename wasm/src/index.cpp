@@ -4,13 +4,6 @@
 #include <cstring>
 #include "wasm_circlegen.h"
 
-// Add a simple test function for printf
-EMSCRIPTEN_KEEPALIVE
-extern "C" void testPrintf() {
-    printf("Test printf function - if you see this, printf is working!\n");
-    fflush(stdout);
-}
-
 // Global variables to store output dimensions
 static int g_outputWidth = 0;
 static int g_outputHeight = 0;
@@ -26,16 +19,13 @@ extern "C" int getOutputHeight() {
 }
 
 EMSCRIPTEN_KEEPALIVE
-extern "C" uint8_t *processImageData(uint8_t *data, int width, int height) {
+extern "C" uint8_t *processImageData(uint8_t *data, int width, int height, int numCircles, int drawLines) {
     // Reset global dimensions at start
     g_outputWidth = 0;
     g_outputHeight = 0;
     
     // Test printf output at the start
-    fprintf(stdout, "Starting image processing...\n");
-    fflush(stdout);
-    fprintf(stderr, "This is an error test message\n");
-    fflush(stderr);
+    fprintf(stdout, "Starting image processing...\n"); fflush(stdout);
     
     printf("Loading image %dx%d...\n", width, height); 
     fflush(stdout);
@@ -75,13 +65,13 @@ extern "C" uint8_t *processImageData(uint8_t *data, int width, int height) {
     printf("Sampling done\n\n"); fflush(stdout);
 
     printf("Generating circles...\n"); fflush(stdout);
-    std::vector<dcircle> circles = generateCircles(points, &resampledPm, 11);
+    std::vector<dcircle> circles = generateCircles(points, &resampledPm, numCircles);
     printf("Circle generation done\n\n"); fflush(stdout);
 
     printf("Quantizing colors...\n"); fflush(stdout);
     // Allocates outputPm.data (RGB) using dimensions from resampled inputPm
     // Use resampled image dimensions for color quantization
-    dpixmap outputPm = quantizeColors(resampledPm, circles);
+    dpixmap outputPm = quantizeColors(resampledPm, circles, drawLines != 0);
     printf("Color quantization complete\n\n"); fflush(stdout);
 
     printf("Drawing final image...\n"); fflush(stdout);

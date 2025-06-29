@@ -28,7 +28,7 @@ struct overlapgroup_ {
     std::vector<uint32_t> keys;
 }; typedef struct overlapgroup_ overlapgroup;
 
-dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
+dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, bool drawLines) {
     overlapgroup ogroup = {std::unordered_map<uint32_t, std::vector<dpixelidx>>(), std::vector<uint32_t>()};
 
     for (int y = 0; y < pm.height; ++y) {
@@ -118,25 +118,27 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles) {
             res.data[rgb_idx + 2] = pixel.rgb[2];
         }
     }
-    // draw black outlines
-    for (size_t i = 0; i < circles.size(); ++i) {
-        float cx = std::get<0>(circles[i]);
-        float cy = std::get<1>(circles[i]);
-        float cr = std::get<2>(circles[i]);
-        // draw at radius cr + offset
-        float rr = cr + 0.0f;
-        if (rr <= 0) continue;
-        int steps = static_cast<int>(2 * M_PI * rr);
-        if (steps < 8) steps = 8;
-        for (int s = 0; s < steps; ++s) {
-            double theta = s * 2 * M_PI / steps;
-            int x = static_cast<int>(std::round(cx + rr * std::cos(theta)));
-            int y = static_cast<int>(std::round(cy + rr * std::sin(theta)));
-            if (x >= 0 && x < res.width && y >= 0 && y < res.height) {
-                int rgb_idx = (y * res.width + x) * 3;
-                res.data[rgb_idx] = 0;
-                res.data[rgb_idx + 1] = 0;
-                res.data[rgb_idx + 2] = 0;
+    // draw black outlines only if requested
+    if (drawLines) {
+        for (size_t i = 0; i < circles.size(); ++i) {
+            float cx = std::get<0>(circles[i]);
+            float cy = std::get<1>(circles[i]);
+            float cr = std::get<2>(circles[i]);
+            // draw at radius cr + offset
+            float rr = cr + 0.0f;
+            if (rr <= 0) continue;
+            int steps = static_cast<int>(2 * M_PI * rr);
+            if (steps < 8) steps = 8;
+            for (int s = 0; s < steps; ++s) {
+                double theta = s * 2 * M_PI / steps;
+                int x = static_cast<int>(std::round(cx + rr * std::cos(theta)));
+                int y = static_cast<int>(std::round(cy + rr * std::sin(theta)));
+                if (x >= 0 && x < res.width && y >= 0 && y < res.height) {
+                    int rgb_idx = (y * res.width + x) * 3;
+                    res.data[rgb_idx] = 0;
+                    res.data[rgb_idx + 1] = 0;
+                    res.data[rgb_idx + 2] = 0;
+                }
             }
         }
     }

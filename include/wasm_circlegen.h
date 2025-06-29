@@ -45,6 +45,6 @@ dpointlist samplePoints(dpixmap pm, size_t num, double threshold);
 
 std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num);
 
-dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles);
+dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, bool drawLines);
 
 #endif
