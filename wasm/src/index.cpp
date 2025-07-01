@@ -52,8 +52,7 @@ extern "C" uint8_t *processImageData(uint8_t *data, int width, int height, int n
     // Copy the RGB data
     memcpy(resampledPm.data, inputPm.data, rgbSize);
     
-    // Limit processing width to match JS max width 1000
-    int desiredWidth = (width > 1000) ? 1000 : width;
+    int desiredWidth = 1000;
     jitteredResample(&resampledPm, desiredWidth, 0.75);
 
     printf("Running filters [sobel]...\n"); fflush(stdout);

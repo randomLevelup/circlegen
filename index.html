@@ -115,6 +115,13 @@
                 transform: scale(1.5);
                 margin: 0 0.5rem;
             }
+            select {
+                font-size: 1rem;
+                padding: 0.5rem;
+                min-height: 40px;
+                font-family: 'Roboto Mono', monospace;
+                margin: 0.5rem;
+            }
             
             /* Mobile input and button sizing */
             @media screen and (max-width: 768px) and (orientation: portrait) {
@@ -137,6 +144,12 @@
                 }
                 label {
                     font-size: 0.9rem;
+                }
+                select {
+                    font-size: 0.9rem;
+                    padding: 0.4rem;
+                    min-height: 35px;
+                    margin: 0.3rem;
                 }
             }
         </style>
@@ -161,12 +174,30 @@
         <div class="button-container">
             <div style="margin-bottom: 15px; font-family: sans-serif;">
                 <label for="circles-input"># circles: </label>
-                <input type="number" id="circles-input" min="1" max="30" value="7" style="width: 60px;">
+                <input type="number" id="circles-input" min="1" max="64" value="7" style="width: 60px;">
                 <label for="lines-checkbox" style="margin-left: 20px;">lines:</label>
                 <input type="checkbox" id="lines-checkbox" checked>
             </div>
-            <input type="file" id="file-input" accept="image/*">
-            <button id="upload-btn">upload image</button>
+            <div style="margin-bottom: 15px; font-family: sans-serif;">
+                <label for="example-select">Choose example: </label>
+                <select id="example-select">
+                    <option value=""></option>
+                    <option value="america.jpg">America</option>
+                    <option value="batman.jpg">Batman</option>
+                    <option value="bliss.png">Bliss</option>
+                    <option value="brazil.png">Brazil</option>
+                    <option value="cartman.jpg">Cartman</option>
+                    <option value="drake.png">Drake</option>
+                    <option value="ironman.png">Iron Man</option>
+                    <option value="mario.png">Mario</option>
+                    <option value="spain.png">Spain</option>
+                    <option value="spiderman.png">Spider-Man</option>
+                    <option value="world.png">World</option>
+                </select>
+                <span style="margin: 0 10px; font-weight: bold;">OR</span>
+                <input type="file" id="file-input" accept="image/*">
+                <button id="upload-btn">upload image</button>
+            </div>
             <button id="generate-btn" disabled>generate</button>
         </div>
 
@@ -179,6 +210,7 @@
           const generateBtn = document.getElementById('generate-btn');
           const circlesInput = document.getElementById('circles-input');
           const linesCheckbox = document.getElementById('lines-checkbox');
+          const exampleSelect = document.getElementById('example-select');
           const inputCanvas = document.getElementById('input-canvas');
           const outputCanvas = document.getElementById('output-canvas');
           const inputCtx = inputCanvas.getContext('2d', { willReadFrequently: true });
@@ -197,6 +229,70 @@
 
           uploadBtn.addEventListener('click', () => fileInput.click());
 
+          // Handle circles input validation and clamping
+          circlesInput.addEventListener('input', function() {
+            let value = parseInt(this.value);
+            
+            // Handle non-integer or empty values
+            if (isNaN(value) || this.value === '') {
+              this.style.backgroundColor = '#ffcccc';
+              this.style.borderColor = '#ff0000';
+              return;
+            }
+            
+            // Clamp the value between 1 and 70
+            let clampedValue = Math.max(1, Math.min(70, value));
+            
+            if (value !== clampedValue) {
+              this.value = clampedValue;
+              this.style.backgroundColor = '#ffffcc';
+              this.style.borderColor = '#ffaa00';
+              // Flash effect to show the value was clamped
+              setTimeout(() => {
+                this.style.backgroundColor = '';
+                this.style.borderColor = '';
+              }, 1000);
+            } else {
+              this.style.backgroundColor = '';
+              this.style.borderColor = '';
+            }
+          });
+
+          // Handle example image selection
+          exampleSelect.addEventListener('change', async e => {
+            const selectedImage = e.target.value;
+            if (!selectedImage) return;
+            
+            try {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              img.onload = () => {
+                inputCanvas.width = img.width;
+                inputCanvas.height = img.height;
+                inputCtx.drawImage(img, 0, 0);
+                generateBtn.disabled = false;
+                outputCanvas.width = 1000;
+                let scaleFactor = 1000 / img.width;
+                outputCanvas.height = Math.floor(img.height * scaleFactor);
+                outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+                // Clear cached imageData to ensure fresh processing
+                imageData = null;
+                // Clear file input when example is selected
+                fileInput.value = '';
+              };
+              img.onerror = () => {
+                console.error('Failed to load example image:', selectedImage);
+                alert('Failed to load example image. Please try again.');
+                exampleSelect.value = '';
+              };
+              img.src = `examples/inputs/${selectedImage}`;
+            } catch (error) {
+              console.error('Error loading example image:', error);
+              alert('Error loading example image. Please try again.');
+              exampleSelect.value = '';
+            }
+          });
+
           fileInput.addEventListener('change', async e => {
             const file = e.target.files[0];
             if (!file) return;
@@ -210,6 +306,8 @@
             outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
             // Clear cached imageData to ensure fresh processing
             imageData = null;
+            // Clear example selection when file is uploaded
+            exampleSelect.value = '';
           });
 
           generateBtn.addEventListener('click', () => {

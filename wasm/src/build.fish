@@ -1,3 +1,7 @@
+rm ../circlegen*
+
+source /home/jupiter/emsdk/emsdk_env.fish
+
 em++ index.cpp cgfill.cpp cgparse.cpp cgproc.cpp -o ../circlegen.js \
      -I ../../include -I ../../include/eigen3 \
      -O3 -Wall -Wextra -Wpedantic -Wshadow \

@@ -53,19 +53,6 @@ struct CircleOptimization {
     }
 
     double operator()(const Eigen::VectorXd &params, Eigen::VectorXd &) const {
-        /* BREAKPOINT: first display circles, then update last */
-        // dcircle current_circle = std::make_tuple(params(0), params(1), params(2));
-        // dcircle last_circle = last;
-        // dpointlist current_pointlist = dpl;
-
-        // if (!equalCircles(current_circle, last_circle, 0.1)) {
-        //     breakpointSaveImage(dpm, current_pointlist, current_circle, last_circle);
-        //     getchar(); // wait for user input
-    
-        //     last = std::make_tuple(params(0), params(1), params(2));
-        // }
-
-        /* continue optimization */
         double total_loss = 0.0;
         double cx = params(0);
         double cy = params(1);
@@ -87,7 +74,6 @@ struct CircleOptimization {
     }
 };
 
-// Define static members of CircleOptimization
 dpixmap* CircleOptimization::dpm = nullptr;
 dpointlist CircleOptimization::dpl;
 dcircle CircleOptimization::last = std::make_tuple(0.0, 0.0, 0.0);
@@ -198,8 +184,12 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
 
     int fail_count = 0;
     while (true) {
-        if (circles.size() >= (unsigned)num || pointlist.size() <= 3 || fail_count > 100) {
+        if (circles.size() >= (unsigned)num) {
             return circles;
+        }
+        if (pointlist.size() <= 3 || fail_count > 100) {
+            // no more points or too many failures: exit optimization loop
+            break;
         }
         // pick 2 random points from pointlist
         dis = std::uniform_int_distribution<int>(0, pointlist.size() - 1);
@@ -228,12 +218,20 @@ std::vector<dcircle> generateCircles(dpointlist &pointlist, dpixmap *pm, int num
             circles.push_back(std::make_tuple(result.xval(0), result.xval(1), result.xval(2)));
             dcircle &new_circle = circles.back();
             pointlist = trimPointlist(pointlist, new_circle, 20);
-            std::cout << "Circle found." 
-                      << " Center: (" << std::get<0>(new_circle) << ", " << std::get<1>(new_circle) << ")"
-                      << " Radius: " << std::get<2>(new_circle) << std::endl;
-            std::cout << "Num points left: " << pointlist.size() << std::endl;
             fail_count = 0;
         }
         else { ++fail_count; }
     }
+    // fallback: place random circles until reaching requested number
+    std::uniform_int_distribution<int> randx(0, pm->width - 1);
+    std::uniform_int_distribution<int> randy(0, pm->height - 1);
+    double maxR = std::min(pm->width, pm->height) / 2.0;
+    std::uniform_real_distribution<double> randr(1.0, maxR);
+    while (circles.size() < (unsigned)num) {
+        double cx = randx(gen);
+        double cy = randy(gen);
+        double r = randr(gen);
+        circles.push_back(std::make_tuple(cx, cy, r));
+    }
+    return circles;
 }

@@ -24,12 +24,12 @@ struct dpixelidx { // pixel with index
 }; typedef struct dpixelxy dpixelxy;
 
 struct overlapgroup_ {
-    std::unordered_map<uint32_t, std::vector<dpixelidx>> table;
-    std::vector<uint32_t> keys;
+    std::unordered_map<uint64_t, std::vector<dpixelidx>> table;
+    std::vector<uint64_t> keys;
 }; typedef struct overlapgroup_ overlapgroup;
 
 dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, bool drawLines) {
-    overlapgroup ogroup = {std::unordered_map<uint32_t, std::vector<dpixelidx>>(), std::vector<uint32_t>()};
+    overlapgroup ogroup = {std::unordered_map<uint64_t, std::vector<dpixelidx>>(), std::vector<uint64_t>()};
 
     for (int y = 0; y < pm.height; ++y) {
         for (int x = 0; x < pm.width; ++x) {
@@ -39,8 +39,8 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, bool dr
             uint8_t g = pm.data[rgb_idx + 1];
             uint8_t b = pm.data[rgb_idx + 2];
 
-            // a pixel's hash key is a 32 bit field with each bit representing containment in a circle.
-            uint32_t key = 0;
+            // a pixel's hash key is a 64 bit field with each bit representing containment in a circle.
+            uint64_t key = 0;
             for (size_t i = 0; i < circles.size(); ++i) {
                 float px = static_cast<float>(x);
                 float py = static_cast<float>(y);

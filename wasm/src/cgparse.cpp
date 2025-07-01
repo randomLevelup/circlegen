@@ -32,16 +32,19 @@ void formatAlpha(dpixmap *pm) {
     pm->data = new_data;
 }
 
-void jitteredResample(dpixmap *pm, int p_width, double jitter) {
+void jitteredResample(dpixmap *pm, int new_width, double jitter) {
     // If dimensions don't change, maybe return early?
-    if (p_width == pm->width) {
+    if (new_width == pm->width) {
          // Check height too if necessary
          // return; // Or just proceed if jitter effect is always desired
     }
 
-    int new_width = std::min(1000, p_width);
     double scalefactor = (double)new_width / (double)(pm->width);
     int new_height = (int)std::floor(pm->height * scalefactor);
+
+    std::cout << "Resampling from " << pm->width << "x" << pm->height
+              << " to " << new_width << "x" << new_height
+              << " with jitter: " << jitter << std::endl;
 
     // Allocate NEW buffer for the resampled data
     uint8_t *new_data = new uint8_t[new_width * new_height * 3];
