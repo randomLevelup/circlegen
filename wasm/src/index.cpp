@@ -51,8 +51,14 @@ extern "C" uint8_t *processImageData(uint8_t *data, int width, int height, int n
     resampledPm.data = new uint8_t[rgbSize];
     // Copy the RGB data
     memcpy(resampledPm.data, inputPm.data, rgbSize);
-    
-    int desiredWidth = 1000;
+    // Determine desired width so that the largest dimension becomes 1000
+    int desiredWidth;
+    if (resampledPm.width > resampledPm.height) {
+        desiredWidth = 1250;
+    } else {
+        // scale width so height will be 1250
+        desiredWidth = (resampledPm.width * 1250) / resampledPm.height;
+    }
     jitteredResample(&resampledPm, desiredWidth, 0.75);
 
     printf("Running filters [sobel]...\n"); fflush(stdout);

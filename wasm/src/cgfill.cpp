@@ -118,26 +118,43 @@ dpixmap quantizeColors(const dpixmap &pm, std::vector<dcircle> &circles, bool dr
             res.data[rgb_idx + 2] = pixel.rgb[2];
         }
     }
-    // draw black outlines only if requested
+    // draw black outlines if requested
     if (drawLines) {
         for (size_t i = 0; i < circles.size(); ++i) {
             float cx = std::get<0>(circles[i]);
             float cy = std::get<1>(circles[i]);
             float cr = std::get<2>(circles[i]);
-            // draw at radius cr + offset
-            float rr = cr + 0.0f;
-            if (rr <= 0) continue;
-            int steps = static_cast<int>(2 * M_PI * rr);
-            if (steps < 8) steps = 8;
-            for (int s = 0; s < steps; ++s) {
-                double theta = s * 2 * M_PI / steps;
-                int x = static_cast<int>(std::round(cx + rr * std::cos(theta)));
-                int y = static_cast<int>(std::round(cy + rr * std::sin(theta)));
-                if (x >= 0 && x < res.width && y >= 0 && y < res.height) {
-                    int rgb_idx = (y * res.width + x) * 3;
-                    res.data[rgb_idx] = 0;
-                    res.data[rgb_idx + 1] = 0;
-                    res.data[rgb_idx + 2] = 0;
+            // distance field for anti-aliasing
+            int min_x = static_cast<int>(cx - cr - 2);
+            int max_x = static_cast<int>(cx + cr + 2);
+            int min_y = static_cast<int>(cy - cr - 2);
+            int max_y = static_cast<int>(cy + cr + 2);
+            // Clamp to image bounds
+            min_x = std::max(0, min_x);
+            max_x = std::min(res.width - 1, max_x);
+            min_y = std::max(0, min_y);
+            max_y = std::min(res.height - 1, max_y);
+            for (int y = min_y; y <= max_y; ++y) {
+                for (int x = min_x; x <= max_x; ++x) {
+                    float dist = std::sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                    // Check if pixel is within the thick outline area (cr-1.5 to cr+1.5)
+                    float edge_dist = std::abs(dist - cr);
+                    if (edge_dist <= 1.5f) {
+                        // Calculate anti-aliasing factor
+                        float alpha = 1.0f - std::max(0.0f, edge_dist - 0.5f);
+                        
+                        int rgb_idx = (y * res.width + x) * 3;
+                        
+                        // Get current pixel color
+                        uint8_t current_r = res.data[rgb_idx];
+                        uint8_t current_g = res.data[rgb_idx + 1];
+                        uint8_t current_b = res.data[rgb_idx + 2];
+                        
+                        // Blend with black based on alpha
+                        res.data[rgb_idx] = static_cast<uint8_t>(current_r * (1.0f - alpha));
+                        res.data[rgb_idx + 1] = static_cast<uint8_t>(current_g * (1.0f - alpha));
+                        res.data[rgb_idx + 2] = static_cast<uint8_t>(current_b * (1.0f - alpha));
+                    }
                 }
             }
         }
